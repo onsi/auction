@@ -16,13 +16,13 @@ import (
 var AllBiddersFull = errors.New("all the bidders were full")
 
 var DefaultRules = types.AuctionRules{
-	MaxRounds:        100,
-	MaxBiddingPool:   20,
-	MaxConcurrent:    20,
-	RepickEveryRound: true,
+	Algorithm:      "all_revote",
+	MaxRounds:      100,
+	MaxBiddingPool: 20,
+	MaxConcurrent:  20,
 }
 
-func HoldAuctionsFor(client types.RepPoolClient, instances []instance.Instance, representatives []string, rules types.AuctionRules, communicator types.AuctionCommunicator) ([]types.AuctionResult, time.Duration) {
+func HoldAuctionsFor(client types.TestRepPoolClient, instances []instance.Instance, representatives []string, rules types.AuctionRules, communicator types.AuctionCommunicator) *types.Report {
 	fmt.Printf("\nStarting Auctions\n\n")
 	bar := pb.StartNew(len(instances))
 
@@ -32,11 +32,13 @@ func HoldAuctionsFor(client types.RepPoolClient, instances []instance.Instance, 
 	for _, inst := range instances {
 		go func(inst instance.Instance) {
 			semaphore <- true
-			c <- communicator(types.AuctionRequest{
+			result := communicator(types.AuctionRequest{
 				Instance: inst,
 				RepGuids: representatives,
 				Rules:    rules,
 			})
+			result.Duration = time.Since(t)
+			c <- result
 			<-semaphore
 		}(inst)
 	}
@@ -49,7 +51,15 @@ func HoldAuctionsFor(client types.RepPoolClient, instances []instance.Instance, 
 
 	bar.Finish()
 
-	return results, time.Since(t)
+	duration := time.Since(t)
+	report := &types.Report{
+		RepGuids:        representatives,
+		AuctionResults:  results,
+		InstancesByRep:  types.FetchAndSortInstances(client, representatives),
+		AuctionDuration: duration,
+	}
+
+	return report
 }
 
 func RemoteAuction(client yagnats.NATSClient, auctionRequest types.AuctionRequest) types.AuctionResult {
@@ -84,19 +94,13 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 
 	var representatives []string
 
-	if !auctionRequest.Rules.RepickEveryRound {
-		representatives = randomSubset(auctionRequest.RepGuids, auctionRequest.Rules.MaxBiddingPool)
-	}
-
-	numRounds, numVotes := 0, 0
+	numRounds, numCommunications := 0, 0
 	t := time.Now()
 	for round := 1; round <= auctionRequest.Rules.MaxRounds; round++ {
-		if auctionRequest.Rules.RepickEveryRound {
-			representatives = randomSubset(auctionRequest.RepGuids, auctionRequest.Rules.MaxBiddingPool)
-		}
+		representatives = randomSubset(auctionRequest.RepGuids, auctionRequest.Rules.MaxBiddingPool)
 		numRounds++
 		winner, _, err := vote(client, auctionRequest.Instance, representatives)
-		numVotes += len(representatives)
+		numCommunications += len(representatives)
 		if err != nil {
 			continue
 		}
@@ -127,7 +131,7 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 		_, secondPlaceScore, err := vote(client, auctionRequest.Instance, secondRoundVoters)
 
 		winnerRecast := <-c
-		numVotes += len(representatives)
+		numCommunications += len(representatives)
 
 		if winnerRecast.Error != "" {
 			//winner ran out of space on the recast, retry
@@ -136,20 +140,22 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 
 		if err == nil && secondPlaceScore < winnerRecast.Score && round < auctionRequest.Rules.MaxRounds {
 			client.Release(winner, auctionRequest.Instance)
+			numCommunications += 1
 			continue
 		}
 
 		client.Claim(winner, auctionRequest.Instance)
+		numCommunications += 1
 		auctionWinner = winner
 		break
 	}
 
 	return types.AuctionResult{
-		Winner:    auctionWinner,
-		Instance:  auctionRequest.Instance,
-		NumRounds: numRounds,
-		NumVotes:  numVotes,
-		Duration:  time.Since(t),
+		Winner:            auctionWinner,
+		Instance:          auctionRequest.Instance,
+		NumRounds:         numRounds,
+		NumCommunications: numCommunications,
+		BiddingDuration:   time.Since(t),
 	}
 }
 

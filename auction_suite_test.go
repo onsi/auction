@@ -13,6 +13,7 @@ import (
 	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
+	"github.com/onsi/auction/visualization"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -38,6 +39,9 @@ var numAuctioneers = 100
 var numReps = 100
 var repResources = 100
 
+var svgReport *visualization.SVGReport
+var reportName string
+
 // plumbing
 var sessionsToTerminate []*gexec.Session
 var natsPort int
@@ -53,7 +57,6 @@ func init() {
 	flag.IntVar(&(auctioneer.DefaultRules.MaxRounds), "maxRounds", auctioneer.DefaultRules.MaxRounds, "the maximum number of rounds per auction")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxBiddingPool), "maxBiddingPool", auctioneer.DefaultRules.MaxBiddingPool, "the maximum number of participants in the pool")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxConcurrent), "maxConcurrent", auctioneer.DefaultRules.MaxConcurrent, "the maximum number of concurrent auctions to run")
-	flag.BoolVar(&(auctioneer.DefaultRules.RepickEveryRound), "repickEveryRound", auctioneer.DefaultRules.RepickEveryRound, "whether to repick every round")
 }
 
 func TestAuction(t *testing.T) {
@@ -62,6 +65,10 @@ func TestAuction(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	reportName = fmt.Sprintf("./%s_%s_%d_%d_%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent, auctioneer.DefaultRules.MaxRounds)
+	svgReport = visualization.StartSVGReport(reportName, 2, 3)
+	svgReport.DrawHeader(auctioneer.DefaultRules)
+
 	fmt.Printf("Running in %s communicationMode\n", communicationMode)
 	fmt.Printf("Running in %s auctioneerMode\n", auctioneerMode)
 
@@ -105,6 +112,9 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterSuite(func() {
+	svgReport.Done()
+	exec.Command("open", "-a", "safari", reportName).Run()
+
 	for _, sess := range sessionsToTerminate {
 		sess.Kill().Wait()
 	}
@@ -160,7 +170,7 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 			serverCmd := exec.Command(
 				repNodeBinary,
 				"-guid", guid,
-				"-natsAddr", fmt.Sprintf("127.0.0.1:%d", natsPort),
+				"-natsAddrs", fmt.Sprintf("127.0.0.1:%d", natsPort),
 				"-resources", fmt.Sprintf("%d", repResources),
 			)
 

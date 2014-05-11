@@ -17,7 +17,7 @@ const yellowColor = "\x1b[33m"
 const cyanColor = "\x1b[36m"
 const grayColor = "\x1b[90m"
 const lightGrayColor = "\x1b[37m"
-const plurpleColor = "\x1b[35m"
+const purpleColor = "\x1b[35m"
 
 func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, representatives []string, duration time.Duration, rules types.AuctionRules) {
 	roundsDistribution := map[int]int{}
@@ -58,8 +58,8 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 		instanceString := ""
 		instances := client.Instances(guid)
 
-		availableColors := []string{"red", "cyan", "yellow", "gray", "plurple", "green"}
-		colorLookup := map[string]string{"red": redColor, "green": greenColor, "cyan": cyanColor, "yellow": yellowColor, "gray": lightGrayColor, "plurple": plurpleColor}
+		availableColors := []string{"red", "cyan", "yellow", "gray", "purple", "green"}
+		colorLookup := map[string]string{"red": redColor, "green": greenColor, "cyan": cyanColor, "yellow": yellowColor, "gray": lightGrayColor, "purple": purpleColor}
 
 		originalCounts := map[string]int{}
 		newCounts := map[string]int{}
@@ -89,15 +89,31 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 		expected := len(auctionedInstances)
 		fmt.Printf("  %s!!!!MISSING INSTANCES!!!!  Expected %d, got %d (%.3f %% failure rate)%s", redColor, expected, numNew, float64(expected-numNew)/float64(expected), defaultStyle)
 	}
-	fmt.Printf("  MaxConcurrent: %d, MaxBiddingBool:%d, RepickEveryRound: %t, MaxRounds: %d\n", rules.MaxConcurrent, rules.MaxBiddingPool, rules.RepickEveryRound, rules.MaxRounds)
+	fmt.Printf("  MaxConcurrent: %d, MaxBiddingBool:%d, MaxRounds: %d\n", rules.MaxConcurrent, rules.MaxBiddingPool, rules.MaxRounds)
 	if _, ok := client.(*lossyrep.LossyRep); ok {
 		fmt.Printf("  Latency Range: %s < %s, Timeout: %s, Flakiness: %.2f\n", lossyrep.LatencyMin, lossyrep.LatencyMax, lossyrep.Timeout, lossyrep.Flakiness)
 	}
 
 	///
 
-	fmt.Println("Times")
-	minTime, maxTime, totalTime, meanTime := time.Hour, time.Duration(0), time.Duration(0), time.Duration(0)
+	fmt.Println("Bidding Times")
+	minBiddingTime, maxBiddingTime, totalBiddingTime, meanBiddingTime := time.Hour, time.Duration(0), time.Duration(0), time.Duration(0)
+	for _, result := range results {
+		if result.BiddingDuration < minBiddingTime {
+			minBiddingTime = result.BiddingDuration
+		}
+		if result.BiddingDuration > maxBiddingTime {
+			maxBiddingTime = result.BiddingDuration
+		}
+		totalBiddingTime += result.BiddingDuration
+		meanBiddingTime += result.BiddingDuration
+	}
+
+	meanBiddingTime = meanBiddingTime / time.Duration(len(results))
+	fmt.Printf("  Min: %s | Max: %s | Total: %s | Mean: %s\n", minBiddingTime, maxBiddingTime, totalBiddingTime, meanBiddingTime)
+
+	fmt.Println("Wait Times")
+	minTime, maxTime, meanTime := time.Hour, time.Duration(0), time.Duration(0)
 	for _, result := range results {
 		if result.Duration < minTime {
 			minTime = result.Duration
@@ -105,12 +121,11 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 		if result.Duration > maxTime {
 			maxTime = result.Duration
 		}
-		totalTime += result.Duration
 		meanTime += result.Duration
 	}
 
 	meanTime = meanTime / time.Duration(len(results))
-	fmt.Printf("  Min: %s | Max: %s | Total: %s | Mean: %s\n", minTime, maxTime, totalTime, meanTime)
+	fmt.Printf("  Min: %s | Max: %s | Mean: %s\n", minTime, maxTime, meanTime)
 
 	///
 
@@ -135,14 +150,14 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 	fmt.Println("Votes")
 	minVotes, maxVotes, totalVotes, meanVotes := 100000000, 0, 0, float64(0)
 	for _, result := range results {
-		if result.NumVotes < minVotes {
-			minVotes = result.NumVotes
+		if result.NumCommunications < minVotes {
+			minVotes = result.NumCommunications
 		}
-		if result.NumVotes > maxVotes {
-			maxVotes = result.NumVotes
+		if result.NumCommunications > maxVotes {
+			maxVotes = result.NumCommunications
 		}
-		totalVotes += result.NumVotes
-		meanVotes += float64(result.NumVotes)
+		totalVotes += result.NumCommunications
+		meanVotes += float64(result.NumCommunications)
 	}
 
 	meanVotes = meanVotes / float64(len(results))

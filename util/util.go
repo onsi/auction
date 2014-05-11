@@ -27,6 +27,20 @@ func NewGuid(prefix string) string {
 	return fmt.Sprintf("%s-%d", prefix, guidTracker[prefix])
 }
 
+func NewGrayscaleGuid(prefix string) string {
+	guidTracker[prefix] = guidTracker[prefix] + 1
+	col := R.Intn(200)
+	return fmt.Sprintf("%s-%d-%s", prefix, guidTracker[prefix], rgb(col, col, col))
+}
+
+func rgb(r int, g int, b int) string {
+	return fmt.Sprintf("rgb(%d,%d,%d)", r, g, b)
+}
+
+func RandomIntIn(min, max int) int {
+	return R.Intn(max-min+1) + min
+}
+
 func RandomGuid() string {
 	b := make([]byte, 8)
 	lock.Lock()
