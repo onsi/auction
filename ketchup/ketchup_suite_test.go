@@ -9,6 +9,7 @@ import (
 	"github.com/onsi/auction/nats/repnatsclient"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
+	"github.com/onsi/auction/visualization"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -35,10 +36,10 @@ var communicator types.AuctionCommunicator
 func init() {
 	flag.StringVar(&auctioneerMode, "auctioneerMode", "inprocess", "one of inprocess, remote")
 
+	flag.StringVar(&(auctioneer.DefaultRules.Algorithm), "algorithm", auctioneer.DefaultRules.Algorithm, "the auction algorithm to use")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxRounds), "maxRounds", auctioneer.DefaultRules.MaxRounds, "the maximum number of rounds per auction")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxBiddingPool), "maxBiddingPool", auctioneer.DefaultRules.MaxBiddingPool, "the maximum number of participants in the pool")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxConcurrent), "maxConcurrent", auctioneer.DefaultRules.MaxConcurrent, "the maximum number of concurrent auctions to run")
-	flag.BoolVar(&(auctioneer.DefaultRules.RepickEveryRound), "repickEveryRound", auctioneer.DefaultRules.RepickEveryRound, "whether to repick every round")
 }
 
 func TestAuction(t *testing.T) {
@@ -47,6 +48,10 @@ func TestAuction(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	reportName = fmt.Sprintf("./runs/%s_ketchup_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	svgReport = visualization.StartSVGReport(reportName, 2, 3)
+	svgReport.DrawHeader("Ketchup", auctioneer.DefaultRules)
+
 	guids = []string{}
 	for _, name := range []string{"executor_z1", "executor_z2"} {
 		for jobIndex := 0; jobIndex < 5; jobIndex++ {
@@ -57,8 +62,8 @@ var _ = BeforeSuite(func() {
 	}
 
 	natsAddrs = []string{
-		"127.0.0.1:20011",
-		"127.0.0.1:20021",
+		"10.10.50.20:4222",
+		"10.10.114.20:4222",
 	}
 
 	numReps = len(guids)
