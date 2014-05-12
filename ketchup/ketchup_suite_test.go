@@ -78,7 +78,7 @@ var _ = BeforeSuite(func() {
 	fmt.Printf("Running in %s auctioneerMode\n", auctioneerMode)
 
 	//parse flags to set up rules
-	timeout = 500 * time.Millisecond
+	timeout = time.Second
 
 	rules = auctioneer.DefaultRules
 
@@ -118,6 +118,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	time.Sleep(time.Second)
 	for _, guid := range guids {
 		client.Reset(guid)
 	}

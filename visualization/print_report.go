@@ -89,7 +89,7 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 		expected := len(auctionedInstances)
 		fmt.Printf("  %s!!!!MISSING INSTANCES!!!!  Expected %d, got %d (%.3f %% failure rate)%s", redColor, expected, numNew, float64(expected-numNew)/float64(expected), defaultStyle)
 	}
-	fmt.Printf("  MaxConcurrent: %d, MaxBiddingBool:%d, MaxRounds: %d\n", rules.MaxConcurrent, rules.MaxBiddingPool, rules.MaxRounds)
+	fmt.Printf("  %#v\n", rules)
 	if _, ok := client.(*lossyrep.LossyRep); ok {
 		fmt.Printf("  Latency Range: %s < %s, Timeout: %s, Flakiness: %.2f\n", lossyrep.LatencyMin, lossyrep.LatencyMax, lossyrep.Timeout, lossyrep.Flakiness)
 	}
