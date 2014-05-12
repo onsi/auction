@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/cloudfoundry/storeadapter"
+	"github.com/cloudfoundry/storeadapter/etcdstoreadapter"
+	"github.com/cloudfoundry/storeadapter/workerpool"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
 	"github.com/onsi/auction/nats/repnatsclient"
@@ -34,6 +37,7 @@ var auctioneerMode string
 var natsClient yagnats.NATSClient
 var client types.TestRepPoolClient
 var communicator types.AuctionCommunicator
+var storeAdapter storeadapter.StoreAdapter
 
 var svgReport *visualization.SVGReport
 var reportName string
@@ -73,6 +77,12 @@ var _ = BeforeSuite(func() {
 		"10.10.114.20:4222",
 	}
 
+	etcdAddrs := []string{"http://10.10.50.28:4001"}
+
+	storeAdapter = etcdstoreadapter.NewETCDStoreAdapter(etcdAddrs, workerpool.NewWorkerPool(10))
+	err := storeAdapter.Connect()
+	Ω(err).ShouldNot(HaveOccurred())
+
 	numReps = len(guids)
 	repResources = 100
 
@@ -92,14 +102,14 @@ var _ = BeforeSuite(func() {
 		})
 	}
 
-	err := natsClient.Connect(clusterInfo)
+	err = natsClient.Connect(clusterInfo)
 	Ω(err).ShouldNot(HaveOccurred())
 
 	client = repnatsclient.New(natsClient, timeout)
 
 	if auctioneerMode == "inprocess" {
 		communicator = func(auctionRequest types.AuctionRequest) types.AuctionResult {
-			return auctioneer.Auction(client, auctionRequest)
+			return auctioneer.Auction(storeAdapter, client, auctionRequest)
 		}
 	} else if auctioneerMode == "remote" {
 		communicator = func(auctionRequest types.AuctionRequest) types.AuctionResult {
@@ -119,6 +129,9 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	err := storeAdapter.Delete("/")
+	Ω(err).ShouldNot(HaveOccurred())
+
 	time.Sleep(time.Second)
 	for _, guid := range guids {
 		client.Reset(guid)

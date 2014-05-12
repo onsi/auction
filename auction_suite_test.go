@@ -103,7 +103,7 @@ var _ = BeforeSuite(func() {
 
 	if auctioneerMode == InProcess {
 		communicator = func(auctionRequest types.AuctionRequest) types.AuctionResult {
-			return auctioneer.Auction(client, auctionRequest)
+			return auctioneer.Auction(etcdRunner.Adapter(), client, auctionRequest)
 		}
 	} else if auctioneerMode == RemoteAuction {
 		startAuctioneers(numAuctioneers)

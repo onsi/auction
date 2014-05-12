@@ -1,6 +1,9 @@
 package auctioneer
 
-import "github.com/onsi/auction/types"
+import (
+	"github.com/cloudfoundry/storeadapter"
+	"github.com/onsi/auction/types"
+)
 
 /*
 
@@ -10,8 +13,15 @@ Pick a subset of reps
 
 */
 
-func hesitateAuction(client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
+func hesitateAuction(etcd storeadapter.StoreAdapter, client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
 	rounds, numCommunications := 1, 0
+	err := etcd.Create(storeadapter.StoreNode{
+		Key:   "/apps/" + auctionRequest.Instance.AppGuid + "/" + auctionRequest.Instance.InstanceGuid,
+		Value: []byte("marco"),
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
 		subset := auctionRequest.RepGuids.RandomSubset(auctionRequest.Rules.MaxBiddingPool)

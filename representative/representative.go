@@ -122,9 +122,12 @@ func sleep(duration time.Duration) {
 }
 
 func (rep *Representative) claim(instance instance.Instance) bool {
-	err := rep.store.Create(storeadapter.StoreNode{
+	err := rep.store.CompareAndSwap(storeadapter.StoreNode{
 		Key:   "/apps/" + instance.AppGuid + "/" + instance.InstanceGuid,
-		Value: []byte("lol"),
+		Value: []byte("marco"),
+	}, storeadapter.StoreNode{
+		Key:   "/apps/" + instance.AppGuid + "/" + instance.InstanceGuid,
+		Value: []byte("polo"),
 	})
 	return err == nil
 }

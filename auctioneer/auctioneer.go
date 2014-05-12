@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cheggaaa/pb"
+	"github.com/cloudfoundry/storeadapter"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/types"
@@ -90,7 +91,7 @@ func RemoteAuction(client yagnats.NATSClient, auctionRequest types.AuctionReques
 	return auctionResult
 }
 
-func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {
+func Auction(etcdStoreAdapter storeadapter.StoreAdapter, client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {
 	result := types.AuctionResult{
 		Instance: auctionRequest.Instance,
 	}
@@ -110,7 +111,7 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 	case "random":
 		result.Winner, result.NumRounds, result.NumCommunications = randomAuction(client, auctionRequest)
 	case "hesitate":
-		result.Winner, result.NumRounds, result.NumCommunications = hesitateAuction(client, auctionRequest)
+		result.Winner, result.NumRounds, result.NumCommunications = hesitateAuction(etcdStoreAdapter, client, auctionRequest)
 	default:
 		panic("unkown algorithm " + auctionRequest.Rules.Algorithm)
 	}
