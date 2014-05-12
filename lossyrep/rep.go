@@ -1,7 +1,6 @@
 package lossyrep
 
 import (
-	"errors"
 	"time"
 
 	"github.com/onsi/auction/instance"
@@ -81,13 +80,13 @@ func (rep *LossyRep) vote(guid string, instance instance.Instance, c chan types.
 	return
 }
 
-func (rep *LossyRep) Vote(representatives []string, instance instance.Instance) []types.VoteResult {
+func (rep *LossyRep) Vote(representatives []string, instance instance.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range representatives {
 		go rep.vote(guid, instance, c)
 	}
 
-	results := []types.VoteResult{}
+	results := types.VoteResults{}
 	for _ = range representatives {
 		results = append(results, <-c)
 	}
@@ -95,12 +94,22 @@ func (rep *LossyRep) Vote(representatives []string, instance instance.Instance) 
 	return results
 }
 
-func (rep *LossyRep) ReserveAndRecastVote(guid string, instance instance.Instance) (float64, error) {
+func (rep *LossyRep) ReserveAndRecastVote(guid string, instance instance.Instance) (result types.VoteResult) {
+	result.Rep = guid
+
 	if rep.beSlowAndFlakey(guid) {
-		return 0, errors.New("timeout")
+		result.Error = "timedout"
+		return
 	}
 
-	return rep.reps[guid].ReserveAndRecastVote(instance)
+	score, err := rep.reps[guid].ReserveAndRecastVote(instance)
+	if err != nil {
+		result.Error = err.Error()
+		return
+	}
+
+	result.Score = score
+	return
 }
 
 func (rep *LossyRep) Release(guid string, instance instance.Instance) {

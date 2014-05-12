@@ -1,18 +1,15 @@
 package auctioneer
 
-import (
-	"github.com/onsi/auction/types"
-	"github.com/onsi/auction/util"
-)
+import "github.com/onsi/auction/types"
 
 func randomAuction(client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
 	rounds, numCommunications := 1, 0
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
-		randomPick := auctionRequest.RepGuids[util.R.Intn(len(auctionRequest.RepGuids))]
-		_, err := client.ReserveAndRecastVote(randomPick, auctionRequest.Instance)
+		randomPick := auctionRequest.RepGuids.RandomSubset(1)[0]
+		result := client.ReserveAndRecastVote(randomPick, auctionRequest.Instance)
 		numCommunications += 1
-		if err != nil {
+		if result.Error != "" {
 			continue
 		}
 

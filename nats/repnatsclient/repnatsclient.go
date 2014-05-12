@@ -103,7 +103,7 @@ func (rep *RepNatsClient) SetInstances(guid string, instances []instance.Instanc
 	}
 }
 
-func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) []types.VoteResult {
+func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types.VoteResults {
 	replyTo := util.RandomGuid()
 
 	allReceived := new(sync.WaitGroup)
@@ -134,7 +134,7 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) []typ
 	})
 
 	if err != nil {
-		return []types.VoteResult{}
+		return types.VoteResults{}
 	}
 
 	payload, _ := json.Marshal(instance)
@@ -160,7 +160,7 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) []typ
 		println("TIMING OUT!!")
 	}
 
-	results := []types.VoteResult{}
+	results := types.VoteResults{}
 
 	for {
 		select {
@@ -174,11 +174,18 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) []typ
 	return results
 }
 
-func (rep *RepNatsClient) ReserveAndRecastVote(guid string, instance instance.Instance) (float64, error) {
+func (rep *RepNatsClient) ReserveAndRecastVote(guid string, instance instance.Instance) (result types.VoteResult) {
+	result.Rep = guid
+
 	var score float64
 	err := rep.publishWithTimeout(guid, "reserve_and_recast_vote", instance, &score)
+	if err != nil {
+		result.Error = err.Error()
+		return
+	}
 
-	return score, err
+	result.Score = score
+	return
 }
 
 func (rep *RepNatsClient) Release(guid string, instance instance.Instance) {

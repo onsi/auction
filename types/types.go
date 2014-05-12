@@ -8,15 +8,9 @@ import (
 	"github.com/onsi/auction/instance"
 )
 
-type VoteResult struct {
-	Rep   string  `json:"r"`
-	Score float64 `json:"s"`
-	Error string  `json:"e"`
-}
-
 type AuctionRequest struct {
 	Instance instance.Instance `json:"i"`
-	RepGuids []string          `json:"rg"`
+	RepGuids RepGuids          `json:"rg"`
 	Rules    AuctionRules      `json:"r"`
 }
 
@@ -39,8 +33,8 @@ type AuctionRules struct {
 type AuctionCommunicator func(AuctionRequest) AuctionResult
 
 type RepPoolClient interface {
-	Vote(guids []string, instance instance.Instance) []VoteResult
-	ReserveAndRecastVote(guid string, instance instance.Instance) (float64, error)
+	Vote(guids []string, instance instance.Instance) VoteResults
+	ReserveAndRecastVote(guid string, instance instance.Instance) VoteResult
 	Release(guid string, instance instance.Instance)
 	Claim(guid string, instance instance.Instance)
 }

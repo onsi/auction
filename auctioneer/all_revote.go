@@ -6,58 +6,50 @@ func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRe
 	rounds, numCommunications := 1, 0
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
-		representatives := randomSubset(auctionRequest.RepGuids, auctionRequest.Rules.MaxBiddingPool)
+		//pick a subset
+		firstRoundReps := auctionRequest.RepGuids.RandomSubset(auctionRequest.Rules.MaxBiddingPool)
 
-		winner, _, err := vote(client, auctionRequest.Instance, representatives)
-		numCommunications += len(representatives)
-		if err != nil {
+		//get everyone's score, if they're all full: bail
+		numCommunications += len(firstRoundReps)
+		firstRoundVotes := client.Vote(firstRoundReps, auctionRequest.Instance)
+		if firstRoundVotes.AllFailed() {
 			continue
 		}
 
-		//make this a one-liner
+		winner := firstRoundVotes.FilterErrors().Shuffle().Sort()[0]
+
+		// tell the winner to reserve
 		c := make(chan types.VoteResult)
+		numCommunications += 1
 		go func() {
-			winnerScore, err := client.ReserveAndRecastVote(winner, auctionRequest.Instance)
-			result := types.VoteResult{
-				Rep: winner,
-			}
-			if err != nil {
-				result.Error = err.Error()
-				c <- result
-				return
-			}
-			result.Score = winnerScore
-			c <- result
+			c <- client.ReserveAndRecastVote(winner.Rep, auctionRequest.Instance)
 		}()
 
-		//and make filtering a oneliner
-		secondRoundVoters := []string{}
+		//get everyone's score again
+		secondRoundReps := firstRoundReps.Without(winner.Rep)
+		numCommunications += len(secondRoundReps)
+		secondRoundVotes := client.Vote(secondRoundReps, auctionRequest.Instance)
 
-		for _, rep := range representatives {
-			if rep != winner {
-				secondRoundVoters = append(secondRoundVoters, rep)
+		winnerRecast := <-c
+
+		//if the winner ran out of space: bail
+		if winnerRecast.Error != "" {
+			continue
+		}
+
+		// if the second place winner has a better score than the original winner: bail
+		if !secondRoundVotes.AllFailed() {
+			secondPlace := secondRoundVotes.FilterErrors().Shuffle().Sort()[0]
+			if secondPlace.Score < winnerRecast.Score {
+				client.Release(winner.Rep, auctionRequest.Instance)
+				numCommunications += 1
+				continue
 			}
 		}
 
-		_, secondPlaceScore, err := vote(client, auctionRequest.Instance, secondRoundVoters)
-
-		winnerRecast := <-c
-		numCommunications += len(representatives)
-
-		if winnerRecast.Error != "" {
-			//winner ran out of space on the recast, retry
-			continue
-		}
-
-		if err == nil && secondPlaceScore < winnerRecast.Score && rounds < auctionRequest.Rules.MaxRounds {
-			client.Release(winner, auctionRequest.Instance)
-			numCommunications += 1
-			continue
-		}
-
-		client.Claim(winner, auctionRequest.Instance)
+		client.Claim(winner.Rep, auctionRequest.Instance)
 		numCommunications += 1
-		return winner, rounds, numCommunications
+		return winner.Rep, rounds, numCommunications
 	}
 
 	return "", rounds, numCommunications

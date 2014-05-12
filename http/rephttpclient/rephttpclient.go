@@ -3,7 +3,6 @@ package rephttpclient
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
@@ -151,13 +150,13 @@ func (rep *RepHTTPClient) vote(guid string, instance instance.Instance, c chan t
 	return
 }
 
-func (rep *RepHTTPClient) Vote(guids []string, instance instance.Instance) []types.VoteResult {
+func (rep *RepHTTPClient) Vote(guids []string, instance instance.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range guids {
 		go rep.vote(guid, instance, c)
 	}
 
-	results := []types.VoteResult{}
+	results := types.VoteResults{}
 	for _ = range guids {
 		results = append(results, <-c)
 	}
@@ -165,35 +164,41 @@ func (rep *RepHTTPClient) Vote(guids []string, instance instance.Instance) []typ
 	return results
 }
 
-func (rep *RepHTTPClient) ReserveAndRecastVote(guid string, instance instance.Instance) (float64, error) {
+func (rep *RepHTTPClient) ReserveAndRecastVote(guid string, instance instance.Instance) (result types.VoteResult) {
 	rep.enter()
 	defer rep.exit()
+	result.Rep = guid
 
 	body := new(bytes.Buffer)
 
 	err := json.NewEncoder(body).Encode(instance)
 	if err != nil {
-		return 0, err
+		result.Error = err.Error()
+		return
 	}
 
 	resp, err := rep.client.Post(rep.endpoints[guid]+"/reserve_and_recast_vote", "application/json", body)
 	if err != nil {
-		return 0, err
+		result.Error = err.Error()
+		return
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, errors.New("failed")
+		result.Error = "failed"
+		return
 	}
 
 	var score float64
 	err = json.NewDecoder(resp.Body).Decode(&score)
 	if err != nil {
-		return 0, err
+		result.Error = err.Error()
+		return
 	}
 
-	return score, nil
+	result.Score = score
+	return
 }
 
 func (rep *RepHTTPClient) Release(guid string, instance instance.Instance) {
