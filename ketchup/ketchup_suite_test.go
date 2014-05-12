@@ -13,6 +13,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"encoding/json"
+	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -105,6 +107,14 @@ var _ = BeforeSuite(func() {
 	} else {
 		panic("wat?")
 	}
+})
+
+var _ = AfterSuite(func() {
+	svgReport.Done()
+	reportJSONName := fmt.Sprintf("./runs/%s_ketchup_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	data, err := json.Marshal(reports)
+	Ω(err).ShouldNot(HaveOccurred())
+	ioutil.WriteFile(reportJSONName, data, 0777)
 })
 
 var _ = BeforeEach(func() {
