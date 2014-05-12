@@ -54,6 +54,7 @@ func TestAuction(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	time.Sleep(10 * time.Second)
 	reportName = fmt.Sprintf("./runs/%s_ketchup_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
 	svgReport = visualization.StartSVGReport(reportName, 2, 3)
 	svgReport.DrawHeader("Ketchup", auctioneer.DefaultRules)
