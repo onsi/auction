@@ -90,86 +90,35 @@ func RemoteAuction(client yagnats.NATSClient, auctionRequest types.AuctionReques
 }
 
 func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {
-	var auctionWinner string
+	result := types.AuctionResult{
+		Instance: auctionRequest.Instance,
+	}
 
-	var representatives []string
-
-	numRounds, numCommunications := 0, 0
 	t := time.Now()
-	for round := 1; round <= auctionRequest.Rules.MaxRounds; round++ {
-		representatives = randomSubset(auctionRequest.RepGuids, auctionRequest.Rules.MaxBiddingPool)
-		numRounds++
-		winner, _, err := vote(client, auctionRequest.Instance, representatives)
-		numCommunications += len(representatives)
-		if err != nil {
-			continue
-		}
-
-		c := make(chan types.VoteResult)
-		go func() {
-			winnerScore, err := client.ReserveAndRecastVote(winner, auctionRequest.Instance)
-			result := types.VoteResult{
-				Rep: winner,
-			}
-			if err != nil {
-				result.Error = err.Error()
-				c <- result
-				return
-			}
-			result.Score = winnerScore
-			c <- result
-		}()
-
-		secondRoundVoters := []string{}
-
-		for _, rep := range representatives {
-			if rep != winner {
-				secondRoundVoters = append(secondRoundVoters, rep)
-			}
-		}
-
-		_, secondPlaceScore, err := vote(client, auctionRequest.Instance, secondRoundVoters)
-
-		winnerRecast := <-c
-		numCommunications += len(representatives)
-
-		if winnerRecast.Error != "" {
-			//winner ran out of space on the recast, retry
-			continue
-		}
-
-		if err == nil && secondPlaceScore < winnerRecast.Score && round < auctionRequest.Rules.MaxRounds {
-			client.Release(winner, auctionRequest.Instance)
-			numCommunications += 1
-			continue
-		}
-
-		client.Claim(winner, auctionRequest.Instance)
-		numCommunications += 1
-		auctionWinner = winner
-		break
+	switch auctionRequest.Rules.Algorithm {
+	case "all_revote":
+		result.Winner, result.NumRounds, result.NumCommunications = allRevoteAuction(client, auctionRequest)
+	case "random":
+		result.Winner, result.NumRounds, result.NumCommunications = randomAuction(client, auctionRequest)
+	default:
+		panic("unkown algorithm " + auctionRequest.Rules.Algorithm)
 	}
+	result.BiddingDuration = time.Since(t)
 
-	return types.AuctionResult{
-		Winner:            auctionWinner,
-		Instance:          auctionRequest.Instance,
-		NumRounds:         numRounds,
-		NumCommunications: numCommunications,
-		BiddingDuration:   time.Since(t),
-	}
+	return result
 }
 
-func randomSubset(representatives []string, subsetSize int) []string {
-	reps := representatives
-	if len(reps) > subsetSize {
-		permutation := util.R.Perm(len(representatives))
-		reps = []string{}
+func randomSubset(repGuids []string, subsetSize int) []string {
+	subset := repGuids
+	if len(subset) > subsetSize {
+		permutation := util.R.Perm(len(repGuids))
+		subset = []string{}
 		for _, index := range permutation[:subsetSize] {
-			reps = append(reps, representatives[index])
+			subset = append(subset, repGuids[index])
 		}
 	}
 
-	return reps
+	return subset
 }
 
 func vote(client types.RepPoolClient, instance instance.Instance, representatives []string) (string, float64, error) {
