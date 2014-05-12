@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudfoundry/storeadapter/etcdstoreadapter"
+	"github.com/cloudfoundry/storeadapter/workerpool"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
 	"github.com/onsi/auction/nats/repnatsclient"
@@ -16,7 +18,12 @@ import (
 
 var natsAddrs = flag.String("natsAddrs", "", "nats server addresses")
 var timeout = flag.Duration("timeout", 500*time.Millisecond, "timeout for entire auction")
-var maxConcurrent = flag.Int("maxConcurrent", 100, "number of concurrent auctions to hold")
+var maxConcurrent = flag.Int("maxConcurrent", 1000, "number of concurrent auctions to hold")
+var etcdCluster = flag.String(
+	"etcdCluster",
+	"http://127.0.0.1:4001",
+	"comma-separated list of etcd addresses (http://ip:port)",
+)
 
 var errorResponse = []byte("error")
 
@@ -45,6 +52,15 @@ func main() {
 
 	semaphore := make(chan bool, *maxConcurrent)
 
+	etcdAdapter := etcdstoreadapter.NewETCDStoreAdapter(
+		strings.Split(*etcdCluster, ","),
+		workerpool.NewWorkerPool(30),
+	)
+	err = etcdAdapter.Connect()
+	if err != nil {
+		panic(err)
+	}
+
 	repclient := repnatsclient.New(client, *timeout)
 
 	client.SubscribeWithQueue("diego.auction", "auction-channel", func(msg *yagnats.Message) {
@@ -60,7 +76,7 @@ func main() {
 			return
 		}
 
-		auctionResult := auctioneer.Auction(repclient, auctionRequest)
+		auctionResult := auctioneer.Auction(etcdAdapter, repclient, auctionRequest)
 		payload, _ := json.Marshal(auctionResult)
 
 		client.Publish(msg.ReplyTo, payload)
