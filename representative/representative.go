@@ -3,7 +3,9 @@ package representative
 import (
 	"errors"
 	"sync"
+	"time"
 
+	"github.com/cloudfoundry/storeadapter"
 	"github.com/onsi/auction/instance"
 )
 
@@ -14,12 +16,16 @@ type Representative struct {
 	lock           *sync.Mutex
 	instances      map[string]instance.Instance
 	totalResources int
+
+	store storeadapter.StoreAdapter
 }
 
-func New(guid string, totalResources int) *Representative {
+func New(store storeadapter.StoreAdapter, guid string, totalResources int) *Representative {
 	return &Representative{
 		guid:           guid,
 		totalResources: totalResources,
+
+		store: store,
 
 		lock:      &sync.Mutex{},
 		instances: map[string]instance.Instance{},
@@ -70,6 +76,57 @@ func (rep *Representative) Vote(instance instance.Instance) (float64, error) {
 		return 0, InsufficientResources
 	}
 	return rep.score(instance), nil
+}
+
+func (rep *Representative) HesitateAndClaim(instance instance.Instance) error {
+	rep.lock.Lock()
+	if !rep.hasRoomFor(instance) {
+		rep.lock.Unlock()
+		return InsufficientResources
+	}
+
+	resources := int(float64(rep.usedResources()) / float64(rep.totalResources) * 10)
+	nInstances := rep.numberOfInstancesForAppGuid(instance.AppGuid)
+	// resources := rep.usedResources()
+	instance.Tentative = true
+	rep.instances[instance.InstanceGuid] = instance
+	rep.lock.Unlock()
+
+	sleep(time.Duration(nInstances) * time.Millisecond)
+	sleep(time.Duration(resources) * time.Millisecond)
+	// time.Sleep(time.Duration(rep.usedResources()) * time.Millisecond)
+
+	if !rep.claim(instance) {
+		rep.lock.Lock()
+		delete(rep.instances, instance.InstanceGuid)
+		rep.lock.Unlock()
+		return errors.New("failed to claim")
+	}
+
+	rep.lock.Lock()
+	instance.Tentative = false
+	rep.instances[instance.InstanceGuid] = instance
+	rep.lock.Unlock()
+
+	return nil
+}
+
+func sleep(duration time.Duration) {
+	if duration == 0 {
+		// just to prevent any scheduling trickery...
+		return
+	}
+
+	// log.Println("hestitating", duration)
+	time.Sleep(duration)
+}
+
+func (rep *Representative) claim(instance instance.Instance) bool {
+	err := rep.store.Create(storeadapter.StoreNode{
+		Key:   "/apps/" + instance.AppGuid + "/" + instance.InstanceGuid,
+		Value: []byte("lol"),
+	})
+	return err == nil
 }
 
 func (rep *Representative) ReserveAndRecastVote(instance instance.Instance) (float64, error) {
@@ -143,3 +200,5 @@ func (rep *Representative) numberOfInstancesForAppGuid(guid string) int {
 	}
 	return n
 }
+
+//

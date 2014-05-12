@@ -151,3 +151,35 @@ func (rep *LossyRep) Claim(guid string, instance instance.Instance) {
 
 	rep.reps[guid].Claim(instance)
 }
+
+func (rep *LossyRep) hesitateAndClaim(guid string, instance instance.Instance, c chan types.VoteResult) {
+	result := types.VoteResult{
+		Rep: guid,
+	}
+	defer func() {
+		c <- result
+	}()
+
+	err := rep.reps[guid].HesitateAndClaim(instance)
+	if err != nil {
+		result.Error = err.Error()
+		return
+	}
+
+	result.Score = 1
+	return
+}
+
+func (rep *LossyRep) HesitateAndClaim(representatives []string, instance instance.Instance) types.VoteResults {
+	c := make(chan types.VoteResult)
+	for _, guid := range representatives {
+		go rep.hesitateAndClaim(guid, instance, c)
+	}
+
+	results := types.VoteResults{}
+	for _ = range representatives {
+		results = append(results, <-c)
+	}
+
+	return results
+}

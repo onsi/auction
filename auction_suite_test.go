@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"strings"
 
 	"github.com/cloudfoundry/gunk/natsrunner"
+	"github.com/cloudfoundry/storeadapter/storerunner/etcdstorerunner"
 	"github.com/onsi/auction/auctioneer"
-	"github.com/onsi/auction/http/rephttpclient"
 	"github.com/onsi/auction/lossyrep"
 	"github.com/onsi/auction/nats/repnatsclient"
 	"github.com/onsi/auction/representative"
@@ -26,7 +27,6 @@ import (
 )
 
 const InProcess = "inprocess"
-const HTTP = "http"
 const NATS = "nats"
 const RemoteAuction = "remote"
 
@@ -49,12 +49,14 @@ var reports []*types.Report
 var sessionsToTerminate []*gexec.Session
 var natsPort int
 var natsRunner *natsrunner.NATSRunner
+var etcdPort int
+var etcdRunner *etcdstorerunner.ETCDClusterRunner
 var client types.TestRepPoolClient
 var guids []string
 var communicator types.AuctionCommunicator
 
 func init() {
-	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, http, nats")
+	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, nats")
 	flag.StringVar(&auctioneerMode, "auctioneerMode", "inprocess", "one of inprocess, remote")
 
 	flag.StringVar(&(auctioneer.DefaultRules.Algorithm), "algorithm", auctioneer.DefaultRules.Algorithm, "the auction algorithm to use")
@@ -83,15 +85,20 @@ var _ = BeforeSuite(func() {
 
 	//parse flags to set up rules
 	timeout = 500 * time.Millisecond
+
 	natsPort = 5222 + GinkgoParallelNode()
+	etcdPort = 4001 + GinkgoParallelNode()
 
 	natsRunner = natsrunner.NewNATSRunner(natsPort)
+	natsRunner.Start()
+
+	etcdRunner = etcdstorerunner.NewETCDClusterRunner(etcdPort, 1)
+	etcdRunner.Start()
 
 	rules = auctioneer.DefaultRules
 
 	sessionsToTerminate = []*gexec.Session{}
 
-	natsRunner.Start()
 	client, guids = buildClient(numReps, repResources)
 
 	if auctioneerMode == InProcess {
@@ -109,6 +116,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	etcdRunner.Stop()
+	etcdRunner.Start()
+
 	for _, guid := range guids {
 		client.Reset(guid)
 	}
@@ -130,6 +140,7 @@ var _ = AfterSuite(func() {
 	}
 
 	natsRunner.Stop()
+	etcdRunner.Stop()
 })
 
 func startAuctioneers(numAuctioneers int) {
@@ -166,7 +177,7 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 		for i := 0; i < numReps; i++ {
 			guid := util.NewGuid("REP")
 			guids = append(guids, guid)
-			repMap[guid] = representative.New(guid, repResources)
+			repMap[guid] = representative.New(etcdRunner.Adapter(), guid, repResources)
 		}
 
 		client := lossyrep.New(repMap, map[string]bool{})
@@ -181,6 +192,7 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 				repNodeBinary,
 				"-guid", guid,
 				"-natsAddrs", fmt.Sprintf("127.0.0.1:%d", natsPort),
+				"-etcdCluster", strings.Join(etcdRunner.NodeURLS(), ","),
 				"-resources", fmt.Sprintf("%d", repResources),
 			)
 
@@ -193,36 +205,6 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 		}
 
 		client := repnatsclient.New(natsRunner.MessageBus, timeout)
-
-		return client, guids
-	} else if communicationMode == HTTP {
-		startPort := 18000 + (numReps * GinkgoParallelNode())
-		guids := []string{}
-
-		repMap := map[string]string{}
-
-		for i := 0; i < numReps; i++ {
-			guid := util.NewGuid("REP")
-			port := startPort + i
-
-			serverCmd := exec.Command(
-				repNodeBinary,
-				"-guid", guid,
-				"-httpAddr", fmt.Sprintf("0.0.0.0:%d", port),
-				"-resources", fmt.Sprintf("%d", repResources),
-			)
-
-			repMap[guid] = fmt.Sprintf("http://127.0.0.1:%d", port)
-
-			sess, err := gexec.Start(serverCmd, GinkgoWriter, GinkgoWriter)
-			Ω(err).ShouldNot(HaveOccurred())
-			Eventually(sess).Should(gbytes.Say("serving"))
-			sessionsToTerminate = append(sessionsToTerminate, sess)
-
-			guids = append(guids, guid)
-		}
-
-		client := rephttpclient.New(repMap, timeout)
 
 		return client, guids
 	}

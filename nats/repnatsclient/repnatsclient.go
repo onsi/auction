@@ -77,6 +77,41 @@ func (rep *RepNatsClient) TotalResources(guid string) int {
 	return totalResources
 }
 
+func (rep *RepNatsClient) HesitateAndClaim(guids []string, instance instance.Instance) types.VoteResults {
+	replyTo := util.RandomGuid()
+
+	response := make(chan types.VoteResult, 1)
+
+	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+		var result types.VoteResult
+		err := json.Unmarshal(msg.Payload, &result)
+		if err != nil {
+			return
+		}
+
+		response <- result
+	})
+
+	if err != nil {
+		return types.VoteResults{}
+	}
+
+	payload, _ := json.Marshal(instance)
+
+	for _, guid := range guids {
+		rep.client.PublishWithReplyTo(guid+".hesitate_and_claim", replyTo, payload)
+	}
+
+	select {
+	case res := <-response:
+		return types.VoteResults{res}
+	case <-time.After(rep.timeout):
+		println("TIMING OUT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	}
+
+	return types.VoteResults{}
+}
+
 func (rep *RepNatsClient) Instances(guid string) []instance.Instance {
 	var instances []instance.Instance
 	err := rep.publishWithTimeout(guid, "instances", nil, &instances)

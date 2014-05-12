@@ -35,6 +35,7 @@ type RepPoolClient interface {
 	ReserveAndRecastVote(guids []string, instance instance.Instance) VoteResults
 	Release(guids []string, instance instance.Instance)
 	Claim(guid string, instance instance.Instance)
+	HesitateAndClaim(guids []string, instance instance.Instance) VoteResults
 }
 
 type TestRepPoolClient interface {

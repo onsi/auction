@@ -109,6 +109,8 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 		result.Winner, result.NumRounds, result.NumCommunications = reserveNBestAuction(client, auctionRequest)
 	case "random":
 		result.Winner, result.NumRounds, result.NumCommunications = randomAuction(client, auctionRequest)
+	case "hesitate":
+		result.Winner, result.NumRounds, result.NumCommunications = hesitateAuction(client, auctionRequest)
 	default:
 		panic("unkown algorithm " + auctionRequest.Rules.Algorithm)
 	}

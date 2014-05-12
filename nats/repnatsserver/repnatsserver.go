@@ -90,6 +90,29 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 		response.Score = score
 	})
 
+	client.Subscribe(guid+".hesitate_and_claim", func(msg *yagnats.Message) {
+		var inst instance.Instance
+
+		err := json.Unmarshal(msg.Payload, &inst)
+		if err != nil {
+			panic(err)
+		}
+
+		response := types.VoteResult{
+			Rep: guid,
+		}
+
+		err = rep.HesitateAndClaim(inst)
+		if err != nil {
+			return
+		}
+
+		response.Score = 1
+
+		payload, _ := json.Marshal(response)
+		client.Publish(msg.ReplyTo, payload)
+	})
+
 	client.Subscribe(guid+".reserve_and_recast_vote", func(msg *yagnats.Message) {
 		var inst instance.Instance
 

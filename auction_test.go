@@ -61,7 +61,7 @@ var _ = Describe("Auction", func() {
 		}
 	})
 
-	FDescribe("Experiments", func() {
+	Describe("Experiments", func() {
 		Context("Cold start scenario", func() {
 			nexec := []int{25, 100}
 			napps := []int{2000, 8000}
