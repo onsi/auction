@@ -102,6 +102,8 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 		result.Winner, result.NumRounds, result.NumCommunications = allReserveAuction(client, auctionRequest)
 	case "pick_among_best":
 		result.Winner, result.NumRounds, result.NumCommunications = pickAmongBestAuction(client, auctionRequest)
+	case "pick_best":
+		result.Winner, result.NumRounds, result.NumCommunications = pickBestAuction(client, auctionRequest)
 	case "reserve_n_best":
 		result.Winner, result.NumRounds, result.NumCommunications = reserveNBestAuction(client, auctionRequest)
 	case "random":
