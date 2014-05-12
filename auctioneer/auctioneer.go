@@ -76,7 +76,8 @@ func RemoteAuction(client yagnats.NATSClient, auctionRequest types.AuctionReques
 	var responsePayload []byte
 	select {
 	case responsePayload = <-c:
-	case <-time.After(time.Minute):
+	case <-time.After(5 * time.Minute):
+		panic("AUCTION TIMED OUT!")
 		return types.AuctionResult{}
 	}
 
