@@ -1,8 +1,10 @@
 package auction_test
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 
 	"github.com/cloudfoundry/gunk/natsrunner"
@@ -41,6 +43,7 @@ var repResources = 100
 
 var svgReport *visualization.SVGReport
 var reportName string
+var reports []*types.Report
 
 // plumbing
 var sessionsToTerminate []*gexec.Session
@@ -68,7 +71,8 @@ func TestAuction(t *testing.T) {
 var _ = BeforeSuite(func() {
 	reportName = fmt.Sprintf("./%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
 	svgReport = visualization.StartSVGReport(reportName, 2, 3)
-	svgReport.DrawHeader(auctioneer.DefaultRules)
+	prettyCommunicationMode := map[string]string{"inprocess": "In-Process", "nats": "NATS"}
+	svgReport.DrawHeader(prettyCommunicationMode[communicationMode], auctioneer.DefaultRules)
 
 	fmt.Printf("Running in %s communicationMode\n", communicationMode)
 	fmt.Printf("Running in %s auctioneerMode\n", auctioneerMode)
@@ -115,6 +119,11 @@ var _ = BeforeEach(func() {
 var _ = AfterSuite(func() {
 	svgReport.Done()
 	exec.Command("open", "-a", "safari", reportName).Run()
+
+	reportJSONName := fmt.Sprintf("./%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	data, err := json.Marshal(reports)
+	Ω(err).ShouldNot(HaveOccurred())
+	ioutil.WriteFile(reportJSONName, data, 0777)
 
 	for _, sess := range sessionsToTerminate {
 		sess.Kill().Wait()

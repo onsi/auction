@@ -59,9 +59,9 @@ func (r *SVGReport) Done() {
 	r.f.Close()
 }
 
-func (r *SVGReport) DrawHeader(rules types.AuctionRules) {
+func (r *SVGReport) DrawHeader(communicationMode string, rules types.AuctionRules) {
 	rulesString := fmt.Sprintf("%#v", rules)
-	r.SVG.Text(border, 40, rulesString[19:len(rulesString)-1], `text-anchor:start;font-size:32px;font-family:Helvetica Neue`)
+	r.SVG.Text(border, 40, communicationMode+" - "+rulesString[19:len(rulesString)-1], `text-anchor:start;font-size:32px;font-family:Helvetica Neue`)
 }
 
 func (r *SVGReport) drawResults() {

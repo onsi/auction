@@ -101,7 +101,7 @@ func (rep *RepNatsClient) SetInstances(guid string, instances []instance.Instanc
 	}
 }
 
-func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types.VoteResults {
+func (rep *RepNatsClient) batch(subject string, guids []string, instance instance.Instance) types.VoteResults {
 	replyTo := util.RandomGuid()
 
 	allReceived := new(sync.WaitGroup)
@@ -127,7 +127,7 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types
 	allReceived.Add(len(guids))
 
 	for _, guid := range guids {
-		rep.client.PublishWithReplyTo(guid+".vote", replyTo, payload)
+		rep.client.PublishWithReplyTo(guid+"."+subject, replyTo, payload)
 	}
 
 	done := make(chan struct{})
@@ -156,59 +156,12 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types
 	return results
 }
 
+func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types.VoteResults {
+	return rep.batch("vote", guids, instance)
+}
+
 func (rep *RepNatsClient) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
-	replyTo := util.RandomGuid()
-
-	allReceived := new(sync.WaitGroup)
-	responses := make(chan types.VoteResult, len(guids))
-
-	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
-		defer allReceived.Done()
-		var result types.VoteResult
-		err := json.Unmarshal(msg.Payload, &result)
-		if err != nil {
-			return
-		}
-
-		responses <- result
-	})
-
-	if err != nil {
-		return types.VoteResults{}
-	}
-
-	payload, _ := json.Marshal(instance)
-
-	allReceived.Add(len(guids))
-
-	for _, guid := range guids {
-		rep.client.PublishWithReplyTo(guid+".reserve_and_recast_vote", replyTo, payload)
-	}
-
-	done := make(chan struct{})
-	go func() {
-		allReceived.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(rep.timeout):
-		println("TIMING OUT!!")
-	}
-
-	results := types.VoteResults{}
-
-	for {
-		select {
-		case res := <-responses:
-			results = append(results, res)
-		default:
-			return results
-		}
-	}
-
-	return results
+	return rep.batch("reserve_and_recast_vote", guids, instance)
 }
 
 func (rep *RepNatsClient) Release(guids []string, instance instance.Instance) {
