@@ -1,10 +1,19 @@
 {
 	"ImportPath": "github.com/onsi/auction",
-	"GoVersion": "devel +f8b50ad4cac4 Mon Apr 21 17:00:27 2014 -0700 +",
+	"GoVersion": "go1.2.1",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/GaryBoone/GoStats/stats",
+			"Rev": "1993eafbef57be29ee8f5eb9d26a22f20ff3c207"
+		},
+		{
+			"ImportPath": "github.com/ajstarks/svgo",
+			"Comment": "go.weekly.2012-01-27-78-gdeded4b",
+			"Rev": "deded4bac90adc56f863a580aa83dd097d0feb2a"
+		},
 		{
 			"ImportPath": "github.com/cheggaaa/pb",
 			"Rev": "a4339a42dc7ac74793debe4c726fcb47ec39bcc3"
@@ -24,10 +33,6 @@
 		{
 			"ImportPath": "github.com/onsi/gomega",
 			"Rev": "d53f20ed6065e75dd459ceb4904b3e0a5cadbf0d"
-		},
-		{
-			"ImportPath": "github.com/vito/cmdtest",
-			"Rev": "ce316f247a64d0ea35484b44315c456833df500a"
 		}
 	]
 }
