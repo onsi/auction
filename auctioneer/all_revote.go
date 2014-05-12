@@ -2,6 +2,15 @@ package auctioneer
 
 import "github.com/onsi/auction/types"
 
+/*
+
+Get the scores from the subset of reps
+    Pick the winner (lowest score)
+        Tell the winner to reserve and the others to revote
+        	If the winner still has the lowest score we are done, otherwise, repeat
+
+*/
+
 func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
 	rounds, numCommunications := 1, 0
 

@@ -98,6 +98,12 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 	switch auctionRequest.Rules.Algorithm {
 	case "all_revote":
 		result.Winner, result.NumRounds, result.NumCommunications = allRevoteAuction(client, auctionRequest)
+	case "all_reserve":
+		result.Winner, result.NumRounds, result.NumCommunications = allReserveAuction(client, auctionRequest)
+	case "pick_among_best":
+		result.Winner, result.NumRounds, result.NumCommunications = pickAmongBestAuction(client, auctionRequest)
+	case "reserve_n_best":
+		result.Winner, result.NumRounds, result.NumCommunications = reserveNBestAuction(client, auctionRequest)
 	case "random":
 		result.Winner, result.NumRounds, result.NumCommunications = randomAuction(client, auctionRequest)
 	default:

@@ -2,6 +2,14 @@ package auctioneer
 
 import "github.com/onsi/auction/types"
 
+/*
+
+Pick an arbitrary rep
+	Tell it to reserve
+		If the reservation succeeds -- we have a winner
+
+*/
+
 func randomAuction(client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
 	rounds, numCommunications := 1, 0
 

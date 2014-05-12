@@ -35,7 +35,7 @@ var auctioneerMode string
 var rules types.AuctionRules
 var timeout time.Duration
 
-var numAuctioneers = 100
+var numAuctioneers = 10
 var numReps = 100
 var repResources = 100
 
@@ -66,7 +66,7 @@ func TestAuction(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	reportName = fmt.Sprintf("./%s_%s_%d_%d_%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent, auctioneer.DefaultRules.MaxRounds)
+	reportName = fmt.Sprintf("./%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
 	svgReport = visualization.StartSVGReport(reportName, 2, 3)
 	svgReport.DrawHeader(auctioneer.DefaultRules)
 

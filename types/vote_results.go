@@ -22,6 +22,15 @@ func (v VoteResults) AllFailed() bool {
 	return len(v.FilterErrors()) == 0
 }
 
+func (v VoteResults) Reps() RepGuids {
+	out := RepGuids{}
+	for _, r := range v {
+		out = append(out, r.Rep)
+	}
+
+	return out
+}
+
 func (v VoteResults) FilterErrors() VoteResults {
 	out := VoteResults{}
 	for _, r := range v {
