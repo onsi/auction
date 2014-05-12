@@ -69,7 +69,7 @@ func TestAuction(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	reportName = fmt.Sprintf("./%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	reportName = fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
 	svgReport = visualization.StartSVGReport(reportName, 2, 3)
 	prettyCommunicationMode := map[string]string{"inprocess": "In-Process", "nats": "NATS"}
 	svgReport.DrawHeader(prettyCommunicationMode[communicationMode], auctioneer.DefaultRules)
@@ -120,7 +120,7 @@ var _ = AfterSuite(func() {
 	svgReport.Done()
 	exec.Command("open", "-a", "safari", reportName).Run()
 
-	reportJSONName := fmt.Sprintf("./%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	reportJSONName := fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
 	data, err := json.Marshal(reports)
 	Ω(err).ShouldNot(HaveOccurred())
 	ioutil.WriteFile(reportJSONName, data, 0777)

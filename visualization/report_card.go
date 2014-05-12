@@ -2,12 +2,12 @@ package visualization
 
 import (
 	"fmt"
+	"github.com/GaryBoone/GoStats/stats"
+	. "github.com/onsi/gomega"
 	"os"
 	"sort"
 	"strings"
 	"time"
-	"github.com/GaryBoone/GoStats/stats"
-	. "github.com/onsi/gomega"
 
 	"github.com/ajstarks/svgo"
 	"github.com/onsi/auction/types"
@@ -145,8 +145,14 @@ func (r *SVGReport) drawText(report *types.Report, y int) {
 	bidStats := report.BiddingTimeStats()
 	waitStats := report.WaitTimeStats()
 
+	missing := ""
+	missingInstances := report.NMissingInstances()
+	if missingInstances > 0 {
+		missing = fmt.Sprintf("MISSING %d (%.2f%%)", missingInstances, float64(missingInstances)/float64(report.NAuctions())*100)
+	}
+
 	lines := []string{
-		fmt.Sprintf("%d Auctions over %d Reps", report.NAuctions(), report.NReps()),
+		fmt.Sprintf("%d over %d Reps %s", report.NAuctions(), report.NReps(), missing),
 		fmt.Sprintf("%.2fs (%.2f a/s)", report.AuctionDuration.Seconds(), report.AuctionsPerSecond()),
 		fmt.Sprintf("Dist: %.3f => %.3f", report.InitialDistributionScore(), report.DistributionScore()),
 		fmt.Sprintf("%.0f Comm | %.1f ± %.1f | %.0f - %.0f", commStats.Total, commStats.Mean, commStats.StdDev, commStats.Min, commStats.Max),
