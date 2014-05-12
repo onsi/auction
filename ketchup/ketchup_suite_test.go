@@ -33,6 +33,10 @@ var natsClient yagnats.NATSClient
 var client types.TestRepPoolClient
 var communicator types.AuctionCommunicator
 
+var svgReport *visualization.SVGReport
+var reportName string
+var reports []*types.Report
+
 func init() {
 	flag.StringVar(&auctioneerMode, "auctioneerMode", "inprocess", "one of inprocess, remote")
 
