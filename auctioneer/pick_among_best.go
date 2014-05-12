@@ -28,7 +28,7 @@ func pickAmongBestAuction(client types.RepPoolClient, auctionRequest types.Aucti
 
 		winner := top5Winners.Shuffle()[0]
 
-		result := client.ReserveAndRecastVote(winner.Rep, auctionRequest.Instance)
+		result := client.ReserveAndRecastVote([]string{winner.Rep}, auctionRequest.Instance)[0]
 		numCommunications += 1
 		if result.Error != "" {
 			continue

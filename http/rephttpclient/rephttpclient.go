@@ -164,10 +164,15 @@ func (rep *RepHTTPClient) Vote(guids []string, instance instance.Instance) types
 	return results
 }
 
-func (rep *RepHTTPClient) ReserveAndRecastVote(guid string, instance instance.Instance) (result types.VoteResult) {
+func (rep *RepHTTPClient) reserveandRecastVote(guid string, instance instance.Instance, c chan types.VoteResult) {
 	rep.enter()
 	defer rep.exit()
-	result.Rep = guid
+	result := types.VoteResult{
+		Rep: guid,
+	}
+	defer func() {
+		c <- result
+	}()
 
 	body := new(bytes.Buffer)
 
@@ -201,7 +206,21 @@ func (rep *RepHTTPClient) ReserveAndRecastVote(guid string, instance instance.In
 	return
 }
 
-func (rep *RepHTTPClient) Release(guid string, instance instance.Instance) {
+func (rep *RepHTTPClient) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
+	c := make(chan types.VoteResult)
+	for _, guid := range guids {
+		go rep.reserveandRecastVote(guid, instance, c)
+	}
+
+	results := types.VoteResults{}
+	for _ = range guids {
+		results = append(results, <-c)
+	}
+
+	return results
+}
+
+func (rep *RepHTTPClient) release(guid string, instance instance.Instance) {
 	rep.enter()
 	defer rep.exit()
 
@@ -218,6 +237,19 @@ func (rep *RepHTTPClient) Release(guid string, instance instance.Instance) {
 	}
 
 	resp.Body.Close()
+}
+
+func (rep *RepHTTPClient) Release(guids []string, instance instance.Instance) {
+	c := make(chan bool)
+	for _, guid := range guids {
+		go func(guid string) {
+			rep.release(guid, instance)
+			c <- true
+		}(guid)
+	}
+	for _ = range guids {
+		<-c
+	}
 }
 
 func (rep *RepHTTPClient) Claim(guid string, instance instance.Instance) {

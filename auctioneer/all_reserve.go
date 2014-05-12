@@ -18,46 +18,21 @@ func allReserveAuction(client types.RepPoolClient, auctionRequest types.AuctionR
 
 		//reserve everyone
 		numCommunications += len(firstRoundReps)
-		c := make(chan types.VoteResult)
-		for _, rep := range firstRoundReps {
-			go func(rep string) {
-				c <- client.ReserveAndRecastVote(rep, auctionRequest.Instance)
-			}(rep)
-		}
-
-		votes := types.VoteResults{}
-		for _ = range firstRoundReps {
-			votes = append(votes, <-c)
-		}
+		votes := client.ReserveAndRecastVote(firstRoundReps, auctionRequest.Instance)
 
 		if votes.AllFailed() {
 			continue
 		}
 
-		orderdReps := votes.FilterErrors().Shuffle().Sort().Reps()
+		orderedReps := votes.FilterErrors().Shuffle().Sort().Reps()
 
-		done := make(chan bool)
-
-		numCommunications += len(orderdReps)
-		for i, rep := range orderdReps {
-			if i == 0 {
-				go func(rep string) {
-					client.Claim(rep, auctionRequest.Instance)
-					done <- true
-				}(rep)
-			} else {
-				go func(rep string) {
-					client.Release(rep, auctionRequest.Instance)
-					done <- true
-				}(rep)
-			}
+		numCommunications += len(orderedReps)
+		client.Claim(orderedReps[0], auctionRequest.Instance)
+		if len(orderedReps) > 1 {
+			client.Release(orderedReps[1:], auctionRequest.Instance)
 		}
 
-		for _ = range orderdReps {
-			<-done
-		}
-
-		return orderdReps[0], rounds, numCommunications
+		return orderedReps[0], rounds, numCommunications
 	}
 
 	return "", rounds, numCommunications

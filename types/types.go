@@ -34,8 +34,8 @@ type AuctionCommunicator func(AuctionRequest) AuctionResult
 
 type RepPoolClient interface {
 	Vote(guids []string, instance instance.Instance) VoteResults
-	ReserveAndRecastVote(guid string, instance instance.Instance) VoteResult
-	Release(guid string, instance instance.Instance)
+	ReserveAndRecastVote(guids []string, instance instance.Instance) VoteResults
+	Release(guids []string, instance instance.Instance)
 	Claim(guid string, instance instance.Instance)
 }
 

@@ -83,7 +83,6 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 
 		score, err := rep.Vote(inst)
 		if err != nil {
-			// log.Println(guid, "failed to vote:", err)
 			response.Error = err.Error()
 			return
 		}
@@ -94,24 +93,27 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 	client.Subscribe(guid+".reserve_and_recast_vote", func(msg *yagnats.Message) {
 		var inst instance.Instance
 
-		responsePayload := errorResponse
-		defer func() {
-			client.Publish(msg.ReplyTo, responsePayload)
-		}()
-
 		err := json.Unmarshal(msg.Payload, &inst)
 		if err != nil {
-			// log.Println(guid, "invalid reserve_and_recast_vote request:", err)
-			return
+			panic(err)
 		}
+
+		response := types.VoteResult{
+			Rep: guid,
+		}
+
+		defer func() {
+			payload, _ := json.Marshal(response)
+			client.Publish(msg.ReplyTo, payload)
+		}()
 
 		score, err := rep.ReserveAndRecastVote(inst)
 		if err != nil {
-			// log.Println(guid, "failed to reserve_and_recast_vote:", err)
+			response.Error = err.Error()
 			return
 		}
 
-		responsePayload, _ = json.Marshal(score)
+		response.Score = score
 	})
 
 	client.Subscribe(guid+".release", func(msg *yagnats.Message) {

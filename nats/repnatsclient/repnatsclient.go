@@ -1,10 +1,8 @@
 package repnatsclient
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -109,17 +107,7 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types
 	allReceived := new(sync.WaitGroup)
 	responses := make(chan types.VoteResult, len(guids))
 
-	buffer := &bytes.Buffer{}
-	lock := &sync.Mutex{}
 	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
-		defer func() {
-			if r := recover(); r != nil {
-				lock.Lock()
-				fmt.Println(buffer)
-				lock.Unlock()
-				panic(r)
-			}
-		}()
 		defer allReceived.Done()
 		var result types.VoteResult
 		err := json.Unmarshal(msg.Payload, &result)
@@ -127,9 +115,6 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types
 			return
 		}
 
-		lock.Lock()
-		fmt.Fprintf(buffer, "REC: %s %s %s\n", replyTo, msg.Subject, result.Rep)
-		lock.Unlock()
 		responses <- result
 	})
 
@@ -142,9 +127,6 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types
 	allReceived.Add(len(guids))
 
 	for _, guid := range guids {
-		lock.Lock()
-		fmt.Fprintf(buffer, "REQ: %s %s\n", guid, replyTo)
-		lock.Unlock()
 		rep.client.PublishWithReplyTo(guid+".vote", replyTo, payload)
 	}
 
@@ -174,24 +156,92 @@ func (rep *RepNatsClient) Vote(guids []string, instance instance.Instance) types
 	return results
 }
 
-func (rep *RepNatsClient) ReserveAndRecastVote(guid string, instance instance.Instance) (result types.VoteResult) {
-	result.Rep = guid
+func (rep *RepNatsClient) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
+	replyTo := util.RandomGuid()
 
-	var score float64
-	err := rep.publishWithTimeout(guid, "reserve_and_recast_vote", instance, &score)
+	allReceived := new(sync.WaitGroup)
+	responses := make(chan types.VoteResult, len(guids))
+
+	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+		defer allReceived.Done()
+		var result types.VoteResult
+		err := json.Unmarshal(msg.Payload, &result)
+		if err != nil {
+			return
+		}
+
+		responses <- result
+	})
+
 	if err != nil {
-		result.Error = err.Error()
+		return types.VoteResults{}
+	}
+
+	payload, _ := json.Marshal(instance)
+
+	allReceived.Add(len(guids))
+
+	for _, guid := range guids {
+		rep.client.PublishWithReplyTo(guid+".reserve_and_recast_vote", replyTo, payload)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		allReceived.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(rep.timeout):
+		println("TIMING OUT!!")
+	}
+
+	results := types.VoteResults{}
+
+	for {
+		select {
+		case res := <-responses:
+			results = append(results, res)
+		default:
+			return results
+		}
+	}
+
+	return results
+}
+
+func (rep *RepNatsClient) Release(guids []string, instance instance.Instance) {
+	replyTo := util.RandomGuid()
+
+	allReceived := new(sync.WaitGroup)
+
+	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+		allReceived.Done()
+	})
+
+	if err != nil {
 		return
 	}
 
-	result.Score = score
-	return
-}
+	payload, _ := json.Marshal(instance)
 
-func (rep *RepNatsClient) Release(guid string, instance instance.Instance) {
-	err := rep.publishWithTimeout(guid, "release", instance, nil)
-	if err != nil {
-		log.Println("failed to release:", err)
+	allReceived.Add(len(guids))
+
+	for _, guid := range guids {
+		rep.client.PublishWithReplyTo(guid+".release", replyTo, payload)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		allReceived.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(rep.timeout):
+		println("TIMING OUT!!")
 	}
 }
 

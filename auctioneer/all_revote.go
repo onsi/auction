@@ -28,18 +28,13 @@ func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRe
 		winner := firstRoundVotes.FilterErrors().Shuffle().Sort()[0]
 
 		// tell the winner to reserve
-		c := make(chan types.VoteResult)
 		numCommunications += 1
-		go func() {
-			c <- client.ReserveAndRecastVote(winner.Rep, auctionRequest.Instance)
-		}()
+		winnerRecast := client.ReserveAndRecastVote([]string{winner.Rep}, auctionRequest.Instance)[0]
 
 		//get everyone's score again
 		secondRoundReps := firstRoundReps.Without(winner.Rep)
 		numCommunications += len(secondRoundReps)
 		secondRoundVotes := client.Vote(secondRoundReps, auctionRequest.Instance)
-
-		winnerRecast := <-c
 
 		//if the winner ran out of space: bail
 		if winnerRecast.Error != "" {
@@ -50,7 +45,7 @@ func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRe
 		if !secondRoundVotes.AllFailed() {
 			secondPlace := secondRoundVotes.FilterErrors().Shuffle().Sort()[0]
 			if secondPlace.Score < winnerRecast.Score {
-				client.Release(winner.Rep, auctionRequest.Instance)
+				client.Release([]string{winner.Rep}, auctionRequest.Instance)
 				numCommunications += 1
 				continue
 			}

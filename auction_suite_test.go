@@ -130,7 +130,7 @@ func startAuctioneers(numAuctioneers int) {
 	for i := 0; i < numAuctioneers; i++ {
 		auctioneerCmd := exec.Command(
 			auctioneerNodeBinary,
-			"-natsAddr", fmt.Sprintf("127.0.0.1:%d", natsPort),
+			"-natsAddrs", fmt.Sprintf("127.0.0.1:%d", natsPort),
 			"-timeout", fmt.Sprintf("%s", timeout),
 		)
 

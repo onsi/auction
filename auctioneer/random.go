@@ -15,7 +15,7 @@ func randomAuction(client types.RepPoolClient, auctionRequest types.AuctionReque
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
 		randomPick := auctionRequest.RepGuids.RandomSubset(1)[0]
-		result := client.ReserveAndRecastVote(randomPick, auctionRequest.Instance)
+		result := client.ReserveAndRecastVote([]string{randomPick}, auctionRequest.Instance)[0]
 		numCommunications += 1
 		if result.Error != "" {
 			continue

@@ -94,8 +94,13 @@ func (rep *LossyRep) Vote(representatives []string, instance instance.Instance) 
 	return results
 }
 
-func (rep *LossyRep) ReserveAndRecastVote(guid string, instance instance.Instance) (result types.VoteResult) {
-	result.Rep = guid
+func (rep *LossyRep) reserveAndRecastVote(guid string, instance instance.Instance, c chan types.VoteResult) {
+	result := types.VoteResult{
+		Rep: guid,
+	}
+	defer func() {
+		c <- result
+	}()
 
 	if rep.beSlowAndFlakey(guid) {
 		result.Error = "timedout"
@@ -112,10 +117,33 @@ func (rep *LossyRep) ReserveAndRecastVote(guid string, instance instance.Instanc
 	return
 }
 
-func (rep *LossyRep) Release(guid string, instance instance.Instance) {
-	rep.beSlowAndFlakey(guid)
+func (rep *LossyRep) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
+	c := make(chan types.VoteResult)
+	for _, guid := range guids {
+		go rep.reserveAndRecastVote(guid, instance, c)
+	}
 
-	rep.reps[guid].Release(instance)
+	results := types.VoteResults{}
+	for _ = range guids {
+		results = append(results, <-c)
+	}
+
+	return results
+}
+
+func (rep *LossyRep) Release(guids []string, instance instance.Instance) {
+	c := make(chan bool)
+	for _, guid := range guids {
+		go func(guid string) {
+			rep.beSlowAndFlakey(guid)
+			rep.reps[guid].Release(instance)
+			c <- true
+		}(guid)
+	}
+
+	for _ = range guids {
+		<-c
+	}
 }
 
 func (rep *LossyRep) Claim(guid string, instance instance.Instance) {
