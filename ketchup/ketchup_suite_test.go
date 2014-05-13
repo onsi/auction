@@ -129,7 +129,14 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	err := storeAdapter.Delete("/")
+	nodes, err := storeAdapter.ListRecursively("/")
+	Ω(err).ShouldNot(HaveOccurred())
+
+	for _, node := range nodes.ChildNodes {
+		err := storeAdapter.Delete(node.Key)
+		Ω(err).ShouldNot(HaveOccurred())
+	}
+
 	Ω(err).ShouldNot(HaveOccurred())
 
 	time.Sleep(time.Second)
