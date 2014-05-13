@@ -76,10 +76,15 @@ func NewHTTPRemoteAuctions(hosts []string) *HTTPRemoteAuctions {
 func (h *HTTPRemoteAuctions) RemoteAuction(auctionRequest types.AuctionRequest) types.AuctionResult {
 	host := h.hosts[util.R.Intn(len(h.hosts))]
 
+	var result types.AuctionResult
+
 	payload, _ := json.Marshal(auctionRequest)
 	res, err := http.Post("http://"+host+"/auction", "application/json", bytes.NewReader(payload))
 	if err != nil {
-		panic(err)
+		fmt.Println("FAILED! TO AUCTION", err)
+		return types.AuctionResult{
+			Instance: auctionRequest.Instance,
+		}
 	}
 
 	defer res.Body.Close()
