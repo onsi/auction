@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ var etcdCluster = flag.String(
 	"http://127.0.0.1:4001",
 	"comma-separated list of etcd addresses (http://ip:port)",
 )
+var httpAddr = flag.String("httpAddr", "0.0.0.0:48710", "http address to listen on")
 
 var errorResponse = []byte("error")
 
@@ -31,7 +33,11 @@ func main() {
 	flag.Parse()
 
 	if *natsAddrs == "" {
-		panic("need either nats addr")
+		panic("need nats addr")
+	}
+
+	if *httpAddr == "" {
+		panic("need http addr")
 	}
 
 	client := yagnats.NewClient()
@@ -63,26 +69,26 @@ func main() {
 
 	repclient := repnatsclient.New(client, *timeout)
 
-	client.SubscribeWithQueue("diego.auction", "auction-channel", func(msg *yagnats.Message) {
+	http.HandleFunc("/auction", func(w http.ResponseWriter, r *http.Request) {
 		semaphore <- true
 		defer func() {
 			<-semaphore
 		}()
 
 		var auctionRequest types.AuctionRequest
-		err := json.Unmarshal(msg.Payload, &auctionRequest)
+		err := json.NewDecoder(r.Body).Decode(&auctionRequest)
 		if err != nil {
-			client.Publish(msg.ReplyTo, errorResponse)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		auctionResult := auctioneer.Auction(etcdAdapter, repclient, auctionRequest)
-		payload, _ := json.Marshal(auctionResult)
 
-		client.Publish(msg.ReplyTo, payload)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(auctionResult)
 	})
 
 	fmt.Println("auctioneering")
 
-	select {}
+	panic(http.ListenAndServe(*httpAddr, nil))
 }

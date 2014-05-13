@@ -106,10 +106,9 @@ var _ = BeforeSuite(func() {
 			return auctioneer.Auction(etcdRunner.Adapter(), client, auctionRequest)
 		}
 	} else if auctioneerMode == RemoteAuction {
-		startAuctioneers(numAuctioneers)
-		communicator = func(auctionRequest types.AuctionRequest) types.AuctionResult {
-			return auctioneer.RemoteAuction(natsRunner.MessageBus, auctionRequest)
-		}
+		auctioneerHosts := startAuctioneers(numAuctioneers)
+		remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
+		communicator = remotAuctionRouter.RemoteAuction
 	} else {
 		panic("wat?")
 	}
@@ -143,22 +142,27 @@ var _ = AfterSuite(func() {
 	etcdRunner.Stop()
 })
 
-func startAuctioneers(numAuctioneers int) {
+func startAuctioneers(numAuctioneers int) []string {
 	auctioneerNodeBinary, err := gexec.Build("github.com/onsi/auction/auctioneernode")
 	Ω(err).ShouldNot(HaveOccurred())
 
+	auctioneerHosts := []string{}
 	for i := 0; i < numAuctioneers; i++ {
+		port := 48710 + i
 		auctioneerCmd := exec.Command(
 			auctioneerNodeBinary,
 			"-natsAddrs", fmt.Sprintf("127.0.0.1:%d", natsPort),
 			"-timeout", fmt.Sprintf("%s", timeout),
+			"-httpAddr", fmt.Sprintf("127.0.0.1:%d", port),
 		)
+		auctioneerHosts = append(auctioneerHosts, fmt.Sprintf("127.0.0.1:%d", port))
 
 		sess, err := gexec.Start(auctioneerCmd, GinkgoWriter, GinkgoWriter)
 		Ω(err).ShouldNot(HaveOccurred())
 		Eventually(sess).Should(gbytes.Say("auctioneering"))
 		sessionsToTerminate = append(sessionsToTerminate, sess)
 	}
+	return auctioneerHosts
 }
 
 func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []string) {

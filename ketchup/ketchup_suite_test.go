@@ -77,6 +77,19 @@ var _ = BeforeSuite(func() {
 		"10.10.114.20:4222",
 	}
 
+	auctioneerHosts := []string{
+		"10.10.50.23:48710",
+		"10.10.50.24:48710",
+		"10.10.50.25:48710",
+		"10.10.50.26:48710",
+		"10.10.50.27:48710",
+		"10.10.114.23:48710",
+		"10.10.114.24:48710",
+		"10.10.114.25:48710",
+		"10.10.114.26:48710",
+		"10.10.114.27:48710",
+	}
+
 	etcdAddrs := []string{"http://10.10.50.28:4001"}
 
 	storeAdapter = etcdstoreadapter.NewETCDStoreAdapter(etcdAddrs, workerpool.NewWorkerPool(10))
@@ -112,9 +125,8 @@ var _ = BeforeSuite(func() {
 			return auctioneer.Auction(storeAdapter, client, auctionRequest)
 		}
 	} else if auctioneerMode == "remote" {
-		communicator = func(auctionRequest types.AuctionRequest) types.AuctionResult {
-			return auctioneer.RemoteAuction(natsClient, auctionRequest)
-		}
+		remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
+		communicator = remotAuctionRouter.RemoteAuction
 	} else {
 		panic("wat?")
 	}

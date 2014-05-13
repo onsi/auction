@@ -1,14 +1,16 @@
 package auctioneer
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"time"
 
 	"github.com/cheggaaa/pb"
 	"github.com/cloudfoundry/storeadapter"
-	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -63,32 +65,33 @@ func HoldAuctionsFor(client types.TestRepPoolClient, instances []instance.Instan
 	return report
 }
 
-func RemoteAuction(client yagnats.NATSClient, auctionRequest types.AuctionRequest) types.AuctionResult {
-	guid := util.RandomGuid()
+type HTTPRemoteAuctions struct {
+	hosts []string
+}
+
+func NewHTTPRemoteAuctions(hosts []string) *HTTPRemoteAuctions {
+	return &HTTPRemoteAuctions{hosts}
+}
+
+func (h *HTTPRemoteAuctions) RemoteAuction(auctionRequest types.AuctionRequest) types.AuctionResult {
+	host := h.hosts[util.R.Intn(len(h.hosts))]
+
 	payload, _ := json.Marshal(auctionRequest)
-
-	c := make(chan []byte)
-	client.Subscribe(guid, func(msg *yagnats.Message) {
-		c <- msg.Payload
-	})
-
-	client.PublishWithReplyTo("diego.auction", guid, payload)
-
-	var responsePayload []byte
-	select {
-	case responsePayload = <-c:
-	case <-time.After(5 * time.Minute):
-		panic("AUCTION TIMED OUT!")
-		return types.AuctionResult{}
-	}
-
-	var auctionResult types.AuctionResult
-	err := json.Unmarshal(responsePayload, &auctionResult)
+	res, err := http.Post("http://"+host+"/auction", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		panic(err)
 	}
 
-	return auctionResult
+	defer res.Body.Close()
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	var result types.AuctionResult
+	json.Unmarshal(data, &result)
+
+	return result
 }
 
 func Auction(etcdStoreAdapter storeadapter.StoreAdapter, client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {
