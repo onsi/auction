@@ -7,12 +7,14 @@ import (
 	"github.com/cloudfoundry/storeadapter/etcdstoreadapter"
 	"github.com/cloudfoundry/storeadapter/workerpool"
 	"github.com/onsi/auction/nats/repnatsserver"
+	"github.com/onsi/auction/rabbit/reprabbitserver"
 	"github.com/onsi/auction/representative"
 )
 
 var resources = flag.Int("resources", 100, "total available resources")
 var guid = flag.String("guid", "", "guid")
 var natsAddrs = flag.String("natsAddrs", "", "nats server addresses")
+var rabbitAddr = flag.String("rabbitAddr", "", "rabbit server address")
 var etcdCluster = flag.String(
 	"etcdCluster",
 	"http://127.0.0.1:4001",
@@ -26,8 +28,8 @@ func main() {
 		panic("need guid")
 	}
 
-	if *natsAddrs == "" {
-		panic("need nats addr")
+	if *natsAddrs == "" && *rabbitAddr == "" {
+		panic("need nats or rabbit addr")
 	}
 
 	etcdAdapter := etcdstoreadapter.NewETCDStoreAdapter(
@@ -43,6 +45,10 @@ func main() {
 
 	if *natsAddrs != "" {
 		go repnatsserver.Start(strings.Split(*natsAddrs, ","), rep)
+	}
+
+	if *rabbitAddr != "" {
+		go reprabbitserver.Start(*rabbitAddr, rep)
 	}
 
 	select {}

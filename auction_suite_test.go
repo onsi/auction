@@ -13,6 +13,7 @@ import (
 	"github.com/onsi/auction/auctioneer"
 	"github.com/onsi/auction/lossyrep"
 	"github.com/onsi/auction/nats/repnatsclient"
+	"github.com/onsi/auction/rabbit/reprabbitclient"
 	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -28,6 +29,7 @@ import (
 
 const InProcess = "inprocess"
 const NATS = "nats"
+const Rabbit = "rabbit"
 const RemoteAuction = "remote"
 
 // knobs
@@ -54,9 +56,10 @@ var etcdRunner *etcdstorerunner.ETCDClusterRunner
 var client types.TestRepPoolClient
 var guids []string
 var communicator types.AuctionCommunicator
+var rabbitSession *gexec.Session
 
 func init() {
-	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, nats")
+	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, nats, rabbit")
 	flag.StringVar(&auctioneerMode, "auctioneerMode", "inprocess", "one of inprocess, remote")
 
 	flag.StringVar(&(auctioneer.DefaultRules.Algorithm), "algorithm", auctioneer.DefaultRules.Algorithm, "the auction algorithm to use")
@@ -99,6 +102,11 @@ var _ = BeforeSuite(func() {
 
 	sessionsToTerminate = []*gexec.Session{}
 
+	var err error
+	rabbitSession, err = gexec.Start(exec.Command("rabbitmq-server"), GinkgoWriter, GinkgoWriter)
+	Ω(err).ShouldNot(HaveOccurred())
+	Eventually(rabbitSession, 2).Should(gbytes.Say("Starting broker... completed"))
+
 	client, guids = buildClient(numReps, repResources)
 
 	if auctioneerMode == InProcess {
@@ -127,7 +135,7 @@ var _ = BeforeEach(func() {
 
 var _ = AfterSuite(func() {
 	svgReport.Done()
-	exec.Command("open", "-a", "safari", reportName).Run()
+	// exec.Command("open", "-a", "safari", reportName).Run()
 
 	reportJSONName := fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
 	data, err := json.Marshal(reports)
@@ -140,6 +148,7 @@ var _ = AfterSuite(func() {
 
 	natsRunner.Stop()
 	etcdRunner.Stop()
+	rabbitSession.Kill().Wait()
 })
 
 func startAuctioneers(numAuctioneers int) []string {
@@ -209,6 +218,31 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 		}
 
 		client := repnatsclient.New(natsRunner.MessageBus, timeout)
+
+		return client, guids
+	} else if communicationMode == Rabbit {
+		guids := []string{}
+
+		for i := 0; i < numReps; i++ {
+			guid := util.NewGuid("REP")
+
+			serverCmd := exec.Command(
+				repNodeBinary,
+				"-guid", guid,
+				"-rabbitAddr", "amqp://127.0.0.1",
+				"-etcdCluster", strings.Join(etcdRunner.NodeURLS(), ","),
+				"-resources", fmt.Sprintf("%d", repResources),
+			)
+
+			sess, err := gexec.Start(serverCmd, GinkgoWriter, GinkgoWriter)
+			Ω(err).ShouldNot(HaveOccurred())
+			Eventually(sess).Should(gbytes.Say("listening"))
+			sessionsToTerminate = append(sessionsToTerminate, sess)
+
+			guids = append(guids, guid)
+		}
+
+		client := reprabbitclient.New("amqp://127.0.0.1", timeout)
 
 		return client, guids
 	}
