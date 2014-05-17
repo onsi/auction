@@ -2,9 +2,9 @@ package simulation_test
 
 import (
 	"github.com/onsi/auction/auctioneer"
+	"github.com/onsi/auction/simulation/visualization"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
-	"github.com/onsi/auction/visualization"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
