@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/onsi/auction/rabbitclient"
+	"github.com/onsi/auction/rabbit/rabbitclient"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
 )
