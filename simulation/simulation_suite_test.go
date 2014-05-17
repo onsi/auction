@@ -1,4 +1,4 @@
-package auction_test
+package simulation_test
 
 import (
 	"encoding/json"
