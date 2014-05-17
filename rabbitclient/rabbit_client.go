@@ -59,7 +59,7 @@ func (r *RabbitClient) ConnectAndEstablish() error {
 		return err
 	}
 
-	deliveries, err := r.channel.Consume(r.queueName(), "", true, true, false, false, nil)
+	deliveries, err := r.channel.Consume(r.queueName(), "", false, true, false, false, nil)
 	if err != nil {
 		r.Disconnect()
 		return err
@@ -67,6 +67,7 @@ func (r *RabbitClient) ConnectAndEstablish() error {
 
 	go func() {
 		for delivery := range deliveries {
+			delivery.Ack(false)
 			r.dispatch(delivery)
 		}
 	}()

@@ -134,7 +134,7 @@ func (rep *RepRabbitClient) Release(guids []string, instance instance.Instance) 
 	allReceived.Add(len(guids))
 	for _, guid := range guids {
 		go func(guid string) {
-			rep.request(guid, "release", nil, nil)
+			rep.request(guid, "release", instance, nil)
 			allReceived.Done()
 		}(guid)
 	}

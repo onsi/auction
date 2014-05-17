@@ -25,7 +25,12 @@ func reserveNBestAuction(client types.RepPoolClient, auctionRequest types.Auctio
 		}
 
 		// pick the top 5 winners
-		winners := firstRoundVotes.FilterErrors().Shuffle().Sort()[:5]
+		winners := firstRoundVotes.FilterErrors().Shuffle().Sort()
+		max := 5
+		if len(winners) < max {
+			max = len(winners)
+		}
+		winners = winners[:max]
 
 		//ask them to reserve
 		winners = client.ReserveAndRecastVote(winners.Reps(), auctionRequest.Instance)

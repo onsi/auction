@@ -1,4 +1,4 @@
-package lossyrep
+package inprocess
 
 import (
 	"time"
@@ -14,19 +14,19 @@ var LatencyMax time.Duration
 var Timeout time.Duration
 var Flakiness = 1.0
 
-type LossyRep struct {
+type InprocessClient struct {
 	reps      map[string]*representative.Representative
 	FlakyReps map[string]bool
 }
 
-func New(reps map[string]*representative.Representative, flakyReps map[string]bool) *LossyRep {
-	return &LossyRep{
+func New(reps map[string]*representative.Representative, flakyReps map[string]bool) *InprocessClient {
+	return &InprocessClient{
 		reps:      reps,
 		FlakyReps: flakyReps,
 	}
 }
 
-func (rep *LossyRep) beSlowAndFlakey(guid string) bool {
+func (rep *InprocessClient) beSlowAndFlakey(guid string) bool {
 	if rep.FlakyReps[guid] {
 		if util.Flake(Flakiness) {
 			time.Sleep(Timeout)
@@ -41,23 +41,23 @@ func (rep *LossyRep) beSlowAndFlakey(guid string) bool {
 	return false
 }
 
-func (rep *LossyRep) TotalResources(guid string) int {
+func (rep *InprocessClient) TotalResources(guid string) int {
 	return rep.reps[guid].TotalResources()
 }
 
-func (rep *LossyRep) Instances(guid string) []instance.Instance {
+func (rep *InprocessClient) Instances(guid string) []instance.Instance {
 	return rep.reps[guid].Instances()
 }
 
-func (rep *LossyRep) SetInstances(guid string, instances []instance.Instance) {
+func (rep *InprocessClient) SetInstances(guid string, instances []instance.Instance) {
 	rep.reps[guid].SetInstances(instances)
 }
 
-func (rep *LossyRep) Reset(guid string) {
+func (rep *InprocessClient) Reset(guid string) {
 	rep.reps[guid].Reset()
 }
 
-func (rep *LossyRep) vote(guid string, instance instance.Instance, c chan types.VoteResult) {
+func (rep *InprocessClient) vote(guid string, instance instance.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -80,7 +80,7 @@ func (rep *LossyRep) vote(guid string, instance instance.Instance, c chan types.
 	return
 }
 
-func (rep *LossyRep) Vote(representatives []string, instance instance.Instance) types.VoteResults {
+func (rep *InprocessClient) Vote(representatives []string, instance instance.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range representatives {
 		go rep.vote(guid, instance, c)
@@ -94,7 +94,7 @@ func (rep *LossyRep) Vote(representatives []string, instance instance.Instance) 
 	return results
 }
 
-func (rep *LossyRep) reserveAndRecastVote(guid string, instance instance.Instance, c chan types.VoteResult) {
+func (rep *InprocessClient) reserveAndRecastVote(guid string, instance instance.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -117,7 +117,7 @@ func (rep *LossyRep) reserveAndRecastVote(guid string, instance instance.Instanc
 	return
 }
 
-func (rep *LossyRep) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
+func (rep *InprocessClient) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range guids {
 		go rep.reserveAndRecastVote(guid, instance, c)
@@ -131,7 +131,7 @@ func (rep *LossyRep) ReserveAndRecastVote(guids []string, instance instance.Inst
 	return results
 }
 
-func (rep *LossyRep) Release(guids []string, instance instance.Instance) {
+func (rep *InprocessClient) Release(guids []string, instance instance.Instance) {
 	c := make(chan bool)
 	for _, guid := range guids {
 		go func(guid string) {
@@ -146,13 +146,13 @@ func (rep *LossyRep) Release(guids []string, instance instance.Instance) {
 	}
 }
 
-func (rep *LossyRep) Claim(guid string, instance instance.Instance) {
+func (rep *InprocessClient) Claim(guid string, instance instance.Instance) {
 	rep.beSlowAndFlakey(guid)
 
 	rep.reps[guid].Claim(instance)
 }
 
-func (rep *LossyRep) hesitateAndClaim(guid string, instance instance.Instance, c chan types.VoteResult) {
+func (rep *InprocessClient) hesitateAndClaim(guid string, instance instance.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -170,7 +170,7 @@ func (rep *LossyRep) hesitateAndClaim(guid string, instance instance.Instance, c
 	return
 }
 
-func (rep *LossyRep) HesitateAndClaim(representatives []string, instance instance.Instance) types.VoteResults {
+func (rep *InprocessClient) HesitateAndClaim(representatives []string, instance instance.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range representatives {
 		go rep.hesitateAndClaim(guid, instance, c)

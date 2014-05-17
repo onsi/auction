@@ -11,7 +11,7 @@ import (
 	"github.com/cloudfoundry/gunk/natsrunner"
 	"github.com/cloudfoundry/storeadapter/storerunner/etcdstorerunner"
 	"github.com/onsi/auction/auctioneer"
-	"github.com/onsi/auction/lossyrep"
+	"github.com/onsi/auction/inprocess"
 	"github.com/onsi/auction/nats/repnatsclient"
 	"github.com/onsi/auction/rabbit/reprabbitclient"
 	"github.com/onsi/auction/representative"
@@ -179,10 +179,10 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 	Ω(err).ShouldNot(HaveOccurred())
 
 	if communicationMode == InProcess {
-		lossyrep.LatencyMin = 2 * time.Millisecond
-		lossyrep.LatencyMax = 12 * time.Millisecond
-		lossyrep.Timeout = 50 * time.Millisecond
-		lossyrep.Flakiness = 0.95
+		inprocess.LatencyMin = 2 * time.Millisecond
+		inprocess.LatencyMax = 12 * time.Millisecond
+		inprocess.Timeout = 50 * time.Millisecond
+		inprocess.Flakiness = 0.95
 
 		guids := []string{}
 		repMap := map[string]*representative.Representative{}
@@ -193,7 +193,7 @@ func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []stri
 			repMap[guid] = representative.New(etcdRunner.Adapter(), guid, repResources)
 		}
 
-		client := lossyrep.New(repMap, map[string]bool{})
+		client := inprocess.New(repMap, map[string]bool{})
 		return client, guids
 	} else if communicationMode == NATS {
 		guids := []string{}

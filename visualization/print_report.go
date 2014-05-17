@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/onsi/auction/lossyrep"
+	"github.com/onsi/auction/inprocess"
 	"github.com/onsi/auction/types"
 )
 
@@ -50,8 +50,8 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 	numNew := 0
 	for _, guid := range representatives {
 		repString := fmt.Sprintf(guidFormat, guid)
-		lossyRep, ok := client.(*lossyrep.LossyRep)
-		if ok && lossyRep.FlakyReps[guid] {
+		inprocessClient, ok := client.(*inprocess.InprocessClient)
+		if ok && inprocessClient.FlakyReps[guid] {
 			repString = fmt.Sprintf("%s"+guidFormat+"%s", redColor, repString, defaultStyle)
 		}
 
@@ -90,8 +90,8 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 		fmt.Printf("  %s!!!!MISSING INSTANCES!!!!  Expected %d, got %d (%.3f %% failure rate)%s", redColor, expected, numNew, float64(expected-numNew)/float64(expected), defaultStyle)
 	}
 	fmt.Printf("  %#v\n", rules)
-	if _, ok := client.(*lossyrep.LossyRep); ok {
-		fmt.Printf("  Latency Range: %s < %s, Timeout: %s, Flakiness: %.2f\n", lossyrep.LatencyMin, lossyrep.LatencyMax, lossyrep.Timeout, lossyrep.Flakiness)
+	if _, ok := client.(*inprocess.InprocessClient); ok {
+		fmt.Printf("  Latency Range: %s < %s, Timeout: %s, Flakiness: %.2f\n", inprocess.LatencyMin, inprocess.LatencyMax, inprocess.Timeout, inprocess.Flakiness)
 	}
 
 	///

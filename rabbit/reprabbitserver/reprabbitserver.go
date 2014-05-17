@@ -14,6 +14,7 @@ var errorResponse = []byte("error")
 var successResponse = []byte("ok")
 
 func Start(rabbitUrl string, rep *representative.Representative) {
+	println("RABBIT", rabbitUrl)
 	server := rabbitclient.NewServer(rep.Guid(), rabbitUrl)
 	err := server.ConnectAndEstablish()
 	if err != nil {
