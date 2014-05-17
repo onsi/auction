@@ -62,7 +62,7 @@ var _ = Describe("Auction", func() {
 	})
 
 	Describe("Experiments", func() {
-		FContext("Cold start scenario", func() {
+		Context("Cold start scenario", func() {
 			nexec := []int{25, 100}
 			napps := []int{2000, 8000}
 			for i := range nexec {
@@ -72,9 +72,9 @@ var _ = Describe("Auction", func() {
 						instances := generateUniqueInstances(napps[i] / 2)
 						instances = append(instances, generateInstancesWithRandomSVGColors(napps[i]/2)...)
 
-						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], rules, communicator)
+						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], auctioneer.DefaultRules, communicator)
 
-						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, rules)
+						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, auctioneer.DefaultRules)
 
 						svgReport.DrawReportCard(i, 0, report)
 						reports = append(reports, report)
@@ -101,9 +101,9 @@ var _ = Describe("Auction", func() {
 					It("should distribute evenly", func() {
 						instances := generateUniqueInstances(napps[i])
 
-						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], rules, communicator)
+						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], auctioneer.DefaultRules, communicator)
 
-						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, rules)
+						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, auctioneer.DefaultRules)
 
 						svgReport.DrawReportCard(i, 1, report)
 						reports = append(reports, report)
@@ -129,9 +129,9 @@ var _ = Describe("Auction", func() {
 					It("should distribute evenly", func() {
 						instances := generateInstancesForAppGuid(napps[i], "red")
 
-						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], rules, communicator)
+						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], auctioneer.DefaultRules, communicator)
 
-						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, rules)
+						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, auctioneer.DefaultRules)
 
 						svgReport.DrawReportCard(i, 2, report)
 						reports = append(reports, report)
