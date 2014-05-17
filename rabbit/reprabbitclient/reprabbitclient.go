@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/rabbitclient"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -70,12 +69,8 @@ func (rep *RepRabbitClient) TotalResources(guid string) int {
 	return totalResources
 }
 
-func (rep *RepRabbitClient) HesitateAndClaim(guids []string, instance instance.Instance) types.VoteResults {
-	panic("noop")
-}
-
-func (rep *RepRabbitClient) Instances(guid string) []instance.Instance {
-	var instances []instance.Instance
+func (rep *RepRabbitClient) Instances(guid string) []types.Instance {
+	var instances []types.Instance
 	err := rep.request(guid, "instances", nil, &instances)
 	if err != nil {
 		panic(err)
@@ -91,14 +86,14 @@ func (rep *RepRabbitClient) Reset(guid string) {
 	}
 }
 
-func (rep *RepRabbitClient) SetInstances(guid string, instances []instance.Instance) {
+func (rep *RepRabbitClient) SetInstances(guid string, instances []types.Instance) {
 	err := rep.request(guid, "set_instances", instances, nil)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (rep *RepRabbitClient) batch(subject string, guids []string, instance instance.Instance) types.VoteResults {
+func (rep *RepRabbitClient) batch(subject string, guids []string, instance types.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range guids {
 		go func(guid string) {
@@ -121,15 +116,15 @@ func (rep *RepRabbitClient) batch(subject string, guids []string, instance insta
 	return votes
 }
 
-func (rep *RepRabbitClient) Vote(guids []string, instance instance.Instance) types.VoteResults {
+func (rep *RepRabbitClient) Vote(guids []string, instance types.Instance) types.VoteResults {
 	return rep.batch("vote", guids, instance)
 }
 
-func (rep *RepRabbitClient) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
+func (rep *RepRabbitClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
 	return rep.batch("reserve_and_recast_vote", guids, instance)
 }
 
-func (rep *RepRabbitClient) Release(guids []string, instance instance.Instance) {
+func (rep *RepRabbitClient) Release(guids []string, instance types.Instance) {
 	allReceived := new(sync.WaitGroup)
 	allReceived.Add(len(guids))
 	for _, guid := range guids {
@@ -142,7 +137,7 @@ func (rep *RepRabbitClient) Release(guids []string, instance instance.Instance) 
 	allReceived.Wait()
 }
 
-func (rep *RepRabbitClient) Claim(guid string, instance instance.Instance) {
+func (rep *RepRabbitClient) Claim(guid string, instance types.Instance) {
 	err := rep.request(guid, "claim", instance, nil)
 	if err != nil {
 		log.Println("failed to claim:", err)

@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/onsi/auction",
-	"GoVersion": "go1.2.1",
+	"GoVersion": "devel +f8b50ad4cac4 Mon Apr 21 17:00:27 2014 -0700 +",
 	"Packages": [
 		"./..."
 	],
@@ -20,24 +20,15 @@
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry/gunk/natsrunner",
-			"Rev": "81c877259dd960760d82fdf29b89259c3761ec79"
+			"Rev": "21adc866d245fff747352415cc036b5ec3c3d4f5"
 		},
 		{
-			"ImportPath": "github.com/cloudfoundry/storeadapter",
-			"Rev": "28086a050c8acb6bc1d28fd23645e208aa95585d"
+			"ImportPath": "github.com/cloudfoundry/storeadapter/workerpool",
+			"Rev": "c21b707184aa2b2b4a8c8a25e90bc36011dd147d"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry/yagnats",
 			"Rev": "2c197cfdcd587274614ab63fef96bbaaa1c01f10"
-		},
-		{
-			"ImportPath": "github.com/coreos/go-etcd/etcd",
-			"Comment": "v0.2.0-rc1-100-g1014044",
-			"Rev": "1014044eff94a4931724969b68867a0ee05beabc"
-		},
-		{
-			"ImportPath": "github.com/nu7hatch/gouuid",
-			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 		},
 		{
 			"ImportPath": "github.com/onsi/ginkgo",
@@ -45,7 +36,11 @@
 		},
 		{
 			"ImportPath": "github.com/onsi/gomega",
-			"Rev": "d53f20ed6065e75dd459ceb4904b3e0a5cadbf0d"
+			"Rev": "f5533d435ebfcf4fa0463202dc0e966b983618b8"
+		},
+		{
+			"ImportPath": "github.com/streadway/amqp",
+			"Rev": "7b38cd13297f6e97caeb484b95e23f841df16f00"
 		}
 	]
 }

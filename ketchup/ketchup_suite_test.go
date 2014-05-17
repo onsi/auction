@@ -4,9 +4,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/cloudfoundry/storeadapter"
-	"github.com/cloudfoundry/storeadapter/etcdstoreadapter"
-	"github.com/cloudfoundry/storeadapter/workerpool"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
 	"github.com/onsi/auction/nats/repnatsclient"
@@ -37,7 +34,6 @@ var auctioneerMode string
 var natsClient yagnats.NATSClient
 var client types.TestRepPoolClient
 var communicator types.AuctionCommunicator
-var storeAdapter storeadapter.StoreAdapter
 
 var svgReport *visualization.SVGReport
 var reportName string
@@ -90,12 +86,6 @@ var _ = BeforeSuite(func() {
 		"10.10.114.27:48710",
 	}
 
-	etcdAddrs := []string{"http://10.10.50.28:4001"}
-
-	storeAdapter = etcdstoreadapter.NewETCDStoreAdapter(etcdAddrs, workerpool.NewWorkerPool(10))
-	err := storeAdapter.Connect()
-	Ω(err).ShouldNot(HaveOccurred())
-
 	numReps = len(guids)
 	repResources = 100
 
@@ -122,7 +112,7 @@ var _ = BeforeSuite(func() {
 
 	if auctioneerMode == "inprocess" {
 		communicator = func(auctionRequest types.AuctionRequest) types.AuctionResult {
-			return auctioneer.Auction(storeAdapter, client, auctionRequest)
+			return auctioneer.Auction(client, auctionRequest)
 		}
 	} else if auctioneerMode == "remote" {
 		remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
@@ -141,16 +131,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	nodes, err := storeAdapter.ListRecursively("/")
-	Ω(err).ShouldNot(HaveOccurred())
-
-	for _, node := range nodes.ChildNodes {
-		err := storeAdapter.Delete(node.Key)
-		Ω(err).ShouldNot(HaveOccurred())
-	}
-
-	Ω(err).ShouldNot(HaveOccurred())
-
 	time.Sleep(time.Second)
 	for _, guid := range guids {
 		client.Reset(guid)

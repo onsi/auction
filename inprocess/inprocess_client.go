@@ -3,7 +3,6 @@ package inprocess
 import (
 	"time"
 
-	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -45,11 +44,11 @@ func (rep *InprocessClient) TotalResources(guid string) int {
 	return rep.reps[guid].TotalResources()
 }
 
-func (rep *InprocessClient) Instances(guid string) []instance.Instance {
+func (rep *InprocessClient) Instances(guid string) []types.Instance {
 	return rep.reps[guid].Instances()
 }
 
-func (rep *InprocessClient) SetInstances(guid string, instances []instance.Instance) {
+func (rep *InprocessClient) SetInstances(guid string, instances []types.Instance) {
 	rep.reps[guid].SetInstances(instances)
 }
 
@@ -57,7 +56,7 @@ func (rep *InprocessClient) Reset(guid string) {
 	rep.reps[guid].Reset()
 }
 
-func (rep *InprocessClient) vote(guid string, instance instance.Instance, c chan types.VoteResult) {
+func (rep *InprocessClient) vote(guid string, instance types.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -80,7 +79,7 @@ func (rep *InprocessClient) vote(guid string, instance instance.Instance, c chan
 	return
 }
 
-func (rep *InprocessClient) Vote(representatives []string, instance instance.Instance) types.VoteResults {
+func (rep *InprocessClient) Vote(representatives []string, instance types.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range representatives {
 		go rep.vote(guid, instance, c)
@@ -94,7 +93,7 @@ func (rep *InprocessClient) Vote(representatives []string, instance instance.Ins
 	return results
 }
 
-func (rep *InprocessClient) reserveAndRecastVote(guid string, instance instance.Instance, c chan types.VoteResult) {
+func (rep *InprocessClient) reserveAndRecastVote(guid string, instance types.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -117,7 +116,7 @@ func (rep *InprocessClient) reserveAndRecastVote(guid string, instance instance.
 	return
 }
 
-func (rep *InprocessClient) ReserveAndRecastVote(guids []string, instance instance.Instance) types.VoteResults {
+func (rep *InprocessClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range guids {
 		go rep.reserveAndRecastVote(guid, instance, c)
@@ -131,7 +130,7 @@ func (rep *InprocessClient) ReserveAndRecastVote(guids []string, instance instan
 	return results
 }
 
-func (rep *InprocessClient) Release(guids []string, instance instance.Instance) {
+func (rep *InprocessClient) Release(guids []string, instance types.Instance) {
 	c := make(chan bool)
 	for _, guid := range guids {
 		go func(guid string) {
@@ -146,40 +145,8 @@ func (rep *InprocessClient) Release(guids []string, instance instance.Instance) 
 	}
 }
 
-func (rep *InprocessClient) Claim(guid string, instance instance.Instance) {
+func (rep *InprocessClient) Claim(guid string, instance types.Instance) {
 	rep.beSlowAndFlakey(guid)
 
 	rep.reps[guid].Claim(instance)
-}
-
-func (rep *InprocessClient) hesitateAndClaim(guid string, instance instance.Instance, c chan types.VoteResult) {
-	result := types.VoteResult{
-		Rep: guid,
-	}
-	defer func() {
-		c <- result
-	}()
-
-	err := rep.reps[guid].HesitateAndClaim(instance)
-	if err != nil {
-		result.Error = err.Error()
-		return
-	}
-
-	result.Score = 1
-	return
-}
-
-func (rep *InprocessClient) HesitateAndClaim(representatives []string, instance instance.Instance) types.VoteResults {
-	c := make(chan types.VoteResult)
-	for _, guid := range representatives {
-		go rep.hesitateAndClaim(guid, instance, c)
-	}
-
-	results := types.VoteResults{}
-	for _ = range representatives {
-		results = append(results, <-c)
-	}
-
-	return results
 }

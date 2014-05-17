@@ -2,7 +2,7 @@ package auction_test
 
 import (
 	"github.com/onsi/auction/auctioneer"
-	"github.com/onsi/auction/instance"
+	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
 	"github.com/onsi/auction/visualization"
 	. "github.com/onsi/ginkgo"
@@ -12,20 +12,20 @@ import (
 var _ = Ω
 
 var _ = Describe("Auction", func() {
-	var initialDistributions map[int][]instance.Instance
+	var initialDistributions map[int][]types.Instance
 
-	generateUniqueInstances := func(numInstances int) []instance.Instance {
-		instances := []instance.Instance{}
+	generateUniqueInstances := func(numInstances int) []types.Instance {
+		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, instance.New(util.NewGrayscaleGuid("BBB"), 1))
+			instances = append(instances, types.NewInstance(util.NewGrayscaleGuid("BBB"), 1))
 		}
 		return instances
 	}
 
-	generateUniqueInitialInstances := func(numInstances int) []instance.Instance {
-		instances := []instance.Instance{}
+	generateUniqueInitialInstances := func(numInstances int) []types.Instance {
+		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, instance.New(util.NewGrayscaleGuid("AAA"), 1))
+			instances = append(instances, types.NewInstance(util.NewGrayscaleGuid("AAA"), 1))
 		}
 		return instances
 	}
@@ -34,25 +34,25 @@ var _ = Describe("Auction", func() {
 		return []string{"purple", "red", "cyan", "teal", "gray", "blue", "pink", "green", "lime", "orange", "lightseagreen", "brown"}[util.R.Intn(12)]
 	}
 
-	generateInstancesWithRandomSVGColors := func(numInstances int) []instance.Instance {
-		instances := []instance.Instance{}
+	generateInstancesWithRandomSVGColors := func(numInstances int) []types.Instance {
+		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, instance.New(randomSVGColor(), 1))
+			instances = append(instances, types.NewInstance(randomSVGColor(), 1))
 		}
 		return instances
 	}
 
-	generateInstancesForAppGuid := func(numInstances int, appGuid string) []instance.Instance {
-		instances := []instance.Instance{}
+	generateInstancesForAppGuid := func(numInstances int, appGuid string) []types.Instance {
+		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, instance.New(appGuid, 1))
+			instances = append(instances, types.NewInstance(appGuid, 1))
 		}
 		return instances
 	}
 
 	BeforeEach(func() {
 		util.ResetGuids()
-		initialDistributions = map[int][]instance.Instance{}
+		initialDistributions = map[int][]types.Instance{}
 	})
 
 	JustBeforeEach(func() {

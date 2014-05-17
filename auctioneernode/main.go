@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudfoundry/storeadapter/etcdstoreadapter"
 	"github.com/cloudfoundry/storeadapter/workerpool"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
@@ -20,11 +19,6 @@ import (
 var natsAddrs = flag.String("natsAddrs", "", "nats server addresses")
 var timeout = flag.Duration("timeout", 500*time.Millisecond, "timeout for entire auction")
 var maxConcurrent = flag.Int("maxConcurrent", 1000, "number of concurrent auctions to hold")
-var etcdCluster = flag.String(
-	"etcdCluster",
-	"http://127.0.0.1:4001",
-	"comma-separated list of etcd addresses (http://ip:port)",
-)
 var httpAddr = flag.String("httpAddr", "0.0.0.0:48710", "http address to listen on")
 
 var errorResponse = []byte("error")
@@ -58,15 +52,6 @@ func main() {
 
 	semaphore := make(chan bool, *maxConcurrent)
 
-	etcdAdapter := etcdstoreadapter.NewETCDStoreAdapter(
-		strings.Split(*etcdCluster, ","),
-		workerpool.NewWorkerPool(30),
-	)
-	err = etcdAdapter.Connect()
-	if err != nil {
-		panic(err)
-	}
-
 	repclient := repnatsclient.New(client, *timeout)
 
 	http.HandleFunc("/auction", func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +67,7 @@ func main() {
 			return
 		}
 
-		auctionResult := auctioneer.Auction(etcdAdapter, repclient, auctionRequest)
+		auctionResult := auctioneer.Auction(repclient, auctionRequest)
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(auctionResult)

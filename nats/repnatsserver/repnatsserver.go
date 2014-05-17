@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"github.com/cloudfoundry/yagnats"
-	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
 )
@@ -48,7 +47,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 	})
 
 	client.Subscribe(guid+".set_instances", func(msg *yagnats.Message) {
-		var instances []instance.Instance
+		var instances []types.Instance
 
 		err := json.Unmarshal(msg.Payload, &instances)
 		if err != nil {
@@ -65,7 +64,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 	})
 
 	client.Subscribe(guid+".vote", func(msg *yagnats.Message) {
-		var inst instance.Instance
+		var inst types.Instance
 
 		err := json.Unmarshal(msg.Payload, &inst)
 		if err != nil {
@@ -90,31 +89,8 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 		response.Score = score
 	})
 
-	client.Subscribe(guid+".hesitate_and_claim", func(msg *yagnats.Message) {
-		var inst instance.Instance
-
-		err := json.Unmarshal(msg.Payload, &inst)
-		if err != nil {
-			panic(err)
-		}
-
-		response := types.VoteResult{
-			Rep: guid,
-		}
-
-		err = rep.HesitateAndClaim(inst)
-		if err != nil {
-			return
-		}
-
-		response.Score = 1
-
-		payload, _ := json.Marshal(response)
-		client.Publish(msg.ReplyTo, payload)
-	})
-
 	client.Subscribe(guid+".reserve_and_recast_vote", func(msg *yagnats.Message) {
-		var inst instance.Instance
+		var inst types.Instance
 
 		err := json.Unmarshal(msg.Payload, &inst)
 		if err != nil {
@@ -140,7 +116,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 	})
 
 	client.Subscribe(guid+".release", func(msg *yagnats.Message) {
-		var inst instance.Instance
+		var inst types.Instance
 
 		responsePayload := errorResponse
 		defer func() {
@@ -159,7 +135,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 	})
 
 	client.Subscribe(guid+".claim", func(msg *yagnats.Message) {
-		var inst instance.Instance
+		var inst types.Instance
 
 		responsePayload := errorResponse
 		defer func() {

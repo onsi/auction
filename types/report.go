@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/GaryBoone/GoStats/stats"
-	"github.com/onsi/auction/instance"
 	"sort"
 	"time"
 )
@@ -10,7 +9,7 @@ import (
 type Report struct {
 	RepGuids                     []string
 	AuctionResults               []AuctionResult
-	InstancesByRep               map[string][]instance.Instance
+	InstancesByRep               map[string][]Instance
 	AuctionDuration              time.Duration
 	auctionedInstancesByInstGuid map[string]bool
 }
@@ -33,7 +32,7 @@ func NewStat(data []float64) Stat {
 	}
 }
 
-func (r *Report) IsAuctionedInstance(inst instance.Instance) bool {
+func (r *Report) IsAuctionedInstance(inst Instance) bool {
 	if r.auctionedInstancesByInstGuid == nil {
 		r.auctionedInstancesByInstGuid = map[string]bool{}
 		for _, result := range r.AuctionResults {
@@ -124,8 +123,8 @@ func (r *Report) WaitTimeStats() Stat {
 	return NewStat(waitTimes)
 }
 
-func FetchAndSortInstances(client TestRepPoolClient, repGuids []string) map[string][]instance.Instance {
-	instancesByRepGuid := map[string][]instance.Instance{}
+func FetchAndSortInstances(client TestRepPoolClient, repGuids []string) map[string][]Instance {
+	instancesByRepGuid := map[string][]Instance{}
 	for _, guid := range repGuids {
 		instances := client.Instances(guid)
 		sort.Sort(ByAppGuid(instances))
@@ -135,7 +134,7 @@ func FetchAndSortInstances(client TestRepPoolClient, repGuids []string) map[stri
 	return instancesByRepGuid
 }
 
-type ByAppGuid []instance.Instance
+type ByAppGuid []Instance
 
 func (a ByAppGuid) Len() int           { return len(a) }
 func (a ByAppGuid) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

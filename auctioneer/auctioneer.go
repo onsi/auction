@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/cheggaaa/pb"
-	"github.com/cloudfoundry/storeadapter"
-	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
 )
@@ -25,7 +23,7 @@ var DefaultRules = types.AuctionRules{
 	MaxConcurrent:  20,
 }
 
-func HoldAuctionsFor(client types.TestRepPoolClient, instances []instance.Instance, representatives []string, rules types.AuctionRules, communicator types.AuctionCommunicator) *types.Report {
+func HoldAuctionsFor(client types.TestRepPoolClient, instances []types.Instance, representatives []string, rules types.AuctionRules, communicator types.AuctionCommunicator) *types.Report {
 	fmt.Printf("\nStarting Auctions\n\n")
 	bar := pb.StartNew(len(instances))
 
@@ -33,7 +31,7 @@ func HoldAuctionsFor(client types.TestRepPoolClient, instances []instance.Instan
 	semaphore := make(chan bool, rules.MaxConcurrent)
 	c := make(chan types.AuctionResult)
 	for _, inst := range instances {
-		go func(inst instance.Instance) {
+		go func(inst types.Instance) {
 			semaphore <- true
 			result := communicator(types.AuctionRequest{
 				Instance: inst,
@@ -97,7 +95,7 @@ func (h *HTTPRemoteAuctions) RemoteAuction(auctionRequest types.AuctionRequest) 
 	return result
 }
 
-func Auction(etcdStoreAdapter storeadapter.StoreAdapter, client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {
+func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {
 	result := types.AuctionResult{
 		Instance: auctionRequest.Instance,
 	}
@@ -116,8 +114,6 @@ func Auction(etcdStoreAdapter storeadapter.StoreAdapter, client types.RepPoolCli
 		result.Winner, result.NumRounds, result.NumCommunications = reserveNBestAuction(client, auctionRequest)
 	case "random":
 		result.Winner, result.NumRounds, result.NumCommunications = randomAuction(client, auctionRequest)
-	case "hesitate":
-		result.Winner, result.NumRounds, result.NumCommunications = hesitateAuction(etcdStoreAdapter, client, auctionRequest)
 	default:
 		panic("unkown algorithm " + auctionRequest.Rules.Algorithm)
 	}

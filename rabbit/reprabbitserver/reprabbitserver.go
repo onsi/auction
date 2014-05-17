@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/onsi/auction/instance"
 	"github.com/onsi/auction/rabbitclient"
 	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
@@ -37,7 +36,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 	})
 
 	server.Handle("set_instances", func(req []byte) []byte {
-		var instances []instance.Instance
+		var instances []types.Instance
 
 		err := json.Unmarshal(req, &instances)
 		if err != nil {
@@ -54,7 +53,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 	})
 
 	server.Handle("vote", func(req []byte) []byte {
-		var inst instance.Instance
+		var inst types.Instance
 
 		err := json.Unmarshal(req, &inst)
 		if err != nil {
@@ -77,7 +76,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 	})
 
 	server.Handle("reserve_and_recast_vote", func(req []byte) []byte {
-		var inst instance.Instance
+		var inst types.Instance
 
 		err := json.Unmarshal(req, &inst)
 		if err != nil {
@@ -100,7 +99,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 	})
 
 	server.Handle("release", func(req []byte) []byte {
-		var instance instance.Instance
+		var instance types.Instance
 
 		err := json.Unmarshal(req, &instance)
 		if err != nil {
@@ -113,7 +112,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 	})
 
 	server.Handle("claim", func(req []byte) []byte {
-		var instance instance.Instance
+		var instance types.Instance
 
 		err := json.Unmarshal(req, &instance)
 		if err != nil {
