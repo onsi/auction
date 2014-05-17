@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/cloudfoundry/gunk/natsrunner"
+	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
 	"github.com/onsi/auction/inprocess"
 	"github.com/onsi/auction/nats/repnatsclient"
@@ -26,36 +27,34 @@ import (
 	"time"
 )
 
-const InProcess = "inprocess"
-const NATS = "nats"
-const Rabbit = "rabbit"
-
-const RemoteAuction = "remote"
-
-// knobs
 var communicationMode string
 var auctioneerMode string
 
-var timeout time.Duration
+const InProcess = "inprocess"
+const NATS = "nats"
+const Rabbit = "rabbit"
+const KetchupNATS = "ketchup-nats"
+const Remote = "remote"
 
-var numAuctioneers = 10
-var numReps = 100
-var repResources = 100
+//these are const because they are fixed on ketchup
+const numAuctioneers = 10
+const numReps = 100
+const repResources = 100
+
+var timeout time.Duration
 
 var svgReport *visualization.SVGReport
 var reportName string
 var reports []*types.Report
 
-// plumbing
 var sessionsToTerminate []*gexec.Session
-var natsAddrs []string
 var natsRunner *natsrunner.NATSRunner
 var client types.TestRepPoolClient
 var guids []string
 var communicator types.AuctionCommunicator
 
 func init() {
-	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, nats, rabbit")
+	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, nats, rabbit, ketchup")
 	flag.StringVar(&auctioneerMode, "auctioneerMode", "inprocess", "one of inprocess, remote")
 	flag.DurationVar(&timeout, "timeout", 500*time.Millisecond, "timeout when waiting for responses from remote calls")
 
@@ -77,8 +76,39 @@ var _ = BeforeSuite(func() {
 	startReport()
 
 	sessionsToTerminate = []*gexec.Session{}
-	client, guids = buildClient(numReps, repResources)
-	communicator = setUpAuctioneers()
+	switch communicationMode {
+	case InProcess:
+		client, guids = buildInProcessReps()
+		if auctioneerMode == Remote {
+			panic("it doesn't make sense to use remote auctioneers when the reps are in-process")
+		}
+	case NATS:
+		natsAddrs := startNATS()
+		client = repnatsclient.New(natsRunner.MessageBus, timeout)
+		guids = launchExternalReps("-natsAddrs", natsAddrs)
+		if auctioneerMode == Remote {
+			communicator = launchExternalAuctioneers("-natsAddrs", natsAddrs)
+		}
+	case Rabbit:
+		rabbitAddr := startRabbit()
+		client = reprabbitclient.New(rabbitAddr, timeout)
+		guids = launchExternalReps("-rabbitAddr", rabbitAddr)
+		if auctioneerMode == Remote {
+			communicator = launchExternalAuctioneers("-rabbitAddr", rabbitAddr)
+		}
+	case KetchupNATS:
+		guids = computeKetchupGuids()
+		client = ketchupNATSClient()
+		if auctioneerMode == Remote {
+			communicator = ketchupAuctioneerCommunicator()
+		}
+	default:
+		panic(fmt.Sprintf("unknown communication mode: %s", communicationMode))
+	}
+
+	if auctioneerMode == InProcess {
+		communicator = inProcessAuctioneers(client)
+	}
 })
 
 var _ = BeforeEach(func() {
@@ -101,21 +131,78 @@ var _ = AfterSuite(func() {
 	}
 })
 
-func setUpAuctioneers() types.AuctionCommunicator {
-	if auctioneerMode == InProcess {
-		return func(auctionRequest types.AuctionRequest) types.AuctionResult {
-			return auctioneer.Auction(client, auctionRequest)
-		}
-	} else if auctioneerMode == RemoteAuction {
-		auctioneerHosts := startAuctioneers(numAuctioneers)
-		remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
-		return remotAuctionRouter.RemoteAuction
+// In-Process
+func buildInProcessReps() (types.TestRepPoolClient, []string) {
+	inprocess.LatencyMin = 2 * time.Millisecond
+	inprocess.LatencyMax = 12 * time.Millisecond
+	inprocess.Timeout = 50 * time.Millisecond
+	inprocess.Flakiness = 0.95
+
+	guids := []string{}
+	repMap := map[string]*representative.Representative{}
+
+	for i := 0; i < numReps; i++ {
+		guid := util.NewGuid("REP")
+		guids = append(guids, guid)
+		repMap[guid] = representative.New(guid, repResources)
 	}
 
-	panic("wat?")
+	client := inprocess.New(repMap, map[string]bool{})
+	return client, guids
 }
 
-func startAuctioneers(numAuctioneers int) []string {
+func inProcessAuctioneers(client types.RepPoolClient) types.AuctionCommunicator {
+	return func(auctionRequest types.AuctionRequest) types.AuctionResult {
+		return auctioneer.Auction(client, auctionRequest)
+	}
+}
+
+func startNATS() string {
+	natsPort := 5222 + GinkgoParallelNode()
+	natsAddrs := []string{fmt.Sprintf("127.0.0.1:%d", natsPort)}
+	natsRunner = natsrunner.NewNATSRunner(natsPort)
+	natsRunner.Start()
+	return strings.Join(natsAddrs, ",")
+}
+
+func startRabbit() string {
+	rabbitSession, err := gexec.Start(exec.Command("rabbitmq-server"), GinkgoWriter, GinkgoWriter)
+	Ω(err).ShouldNot(HaveOccurred())
+	Eventually(rabbitSession, 2).Should(gbytes.Say("Starting broker... completed"))
+	sessionsToTerminate = append(sessionsToTerminate, rabbitSession)
+	return "amqp://127.0.0.1"
+}
+
+// external
+
+func launchExternalReps(communicationFlag string, communicationValue string) []string {
+	repNodeBinary, err := gexec.Build("github.com/onsi/auction/repnode")
+	Ω(err).ShouldNot(HaveOccurred())
+
+	guids := []string{}
+
+	for i := 0; i < numReps; i++ {
+		guid := util.NewGuid("REP")
+
+		serverCmd := exec.Command(
+			repNodeBinary,
+			"-guid", guid,
+			communicationFlag, communicationValue,
+			"-resources", fmt.Sprintf("%d", repResources),
+		)
+
+		sess, err := gexec.Start(serverCmd, GinkgoWriter, GinkgoWriter)
+		Ω(err).ShouldNot(HaveOccurred())
+		Eventually(sess).Should(gbytes.Say("listening"))
+		sessionsToTerminate = append(sessionsToTerminate, sess)
+
+		guids = append(guids, guid)
+	}
+
+	return guids
+}
+
+func launchExternalAuctioneers(communicationFlag string, communicationValue string) types.AuctionCommunicator {
 	auctioneerNodeBinary, err := gexec.Build("github.com/onsi/auction/auctioneernode")
 	Ω(err).ShouldNot(HaveOccurred())
 
@@ -124,7 +211,7 @@ func startAuctioneers(numAuctioneers int) []string {
 		port := 48710 + i
 		auctioneerCmd := exec.Command(
 			auctioneerNodeBinary,
-			"-natsAddrs", strings.Join(natsAddrs, ","),
+			communicationFlag, communicationValue,
 			"-timeout", fmt.Sprintf("%s", timeout),
 			"-httpAddr", fmt.Sprintf("127.0.0.1:%d", port),
 		)
@@ -135,92 +222,66 @@ func startAuctioneers(numAuctioneers int) []string {
 		Eventually(sess).Should(gbytes.Say("auctioneering"))
 		sessionsToTerminate = append(sessionsToTerminate, sess)
 	}
-	return auctioneerHosts
+
+	remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
+	return remotAuctionRouter.RemoteAuction
 }
 
-func buildClient(numReps int, repResources int) (types.TestRepPoolClient, []string) {
-	repNodeBinary, err := gexec.Build("github.com/onsi/auction/repnode")
-	Ω(err).ShouldNot(HaveOccurred())
+//Ketchup
 
-	if communicationMode == InProcess {
-		inprocess.LatencyMin = 2 * time.Millisecond
-		inprocess.LatencyMax = 12 * time.Millisecond
-		inprocess.Timeout = 50 * time.Millisecond
-		inprocess.Flakiness = 0.95
-
-		guids := []string{}
-		repMap := map[string]*representative.Representative{}
-
-		for i := 0; i < numReps; i++ {
-			guid := util.NewGuid("REP")
-			guids = append(guids, guid)
-			repMap[guid] = representative.New(guid, repResources)
+func computeKetchupGuids() []string {
+	guids = []string{}
+	for _, name := range []string{"executor_z1", "executor_z2"} {
+		for jobIndex := 0; jobIndex < 5; jobIndex++ {
+			for index := 0; index < 10; index++ {
+				guids = append(guids, fmt.Sprintf("%s-%d-%d", name, jobIndex, index))
+			}
 		}
-
-		client := inprocess.New(repMap, map[string]bool{})
-		return client, guids
-	} else if communicationMode == NATS {
-		guids := []string{}
-
-		natsPort := 5222 + GinkgoParallelNode()
-		natsAddrs = []string{fmt.Sprintf("127.0.0.1:%d", natsPort)}
-		natsRunner = natsrunner.NewNATSRunner(natsPort)
-		natsRunner.Start()
-
-		for i := 0; i < numReps; i++ {
-			guid := util.NewGuid("REP")
-
-			serverCmd := exec.Command(
-				repNodeBinary,
-				"-guid", guid,
-				"-natsAddrs", strings.Join(natsAddrs, ","),
-				"-resources", fmt.Sprintf("%d", repResources),
-			)
-
-			sess, err := gexec.Start(serverCmd, GinkgoWriter, GinkgoWriter)
-			Ω(err).ShouldNot(HaveOccurred())
-			Eventually(sess).Should(gbytes.Say("listening"))
-			sessionsToTerminate = append(sessionsToTerminate, sess)
-
-			guids = append(guids, guid)
-		}
-
-		client := repnatsclient.New(natsRunner.MessageBus, timeout)
-
-		return client, guids
-	} else if communicationMode == Rabbit {
-		rabbitSession, err := gexec.Start(exec.Command("rabbitmq-server"), GinkgoWriter, GinkgoWriter)
-		Ω(err).ShouldNot(HaveOccurred())
-		Eventually(rabbitSession, 2).Should(gbytes.Say("Starting broker... completed"))
-		sessionsToTerminate = append(sessionsToTerminate, rabbitSession)
-
-		guids := []string{}
-
-		for i := 0; i < numReps; i++ {
-			guid := util.NewGuid("REP")
-
-			serverCmd := exec.Command(
-				repNodeBinary,
-				"-guid", guid,
-				"-rabbitAddr", "amqp://127.0.0.1",
-				"-resources", fmt.Sprintf("%d", repResources),
-			)
-
-			sess, err := gexec.Start(serverCmd, GinkgoWriter, GinkgoWriter)
-			Ω(err).ShouldNot(HaveOccurred())
-			Eventually(sess).Should(gbytes.Say("listening"))
-			sessionsToTerminate = append(sessionsToTerminate, sess)
-
-			guids = append(guids, guid)
-		}
-
-		client := reprabbitclient.New("amqp://127.0.0.1", timeout)
-
-		return client, guids
 	}
 
-	panic("wat!")
+	return guids
 }
+
+func ketchupAuctioneerCommunicator() types.AuctionCommunicator {
+	auctioneerHosts := []string{
+		"10.10.50.23:48710",
+		"10.10.50.24:48710",
+		"10.10.50.25:48710",
+		"10.10.50.26:48710",
+		"10.10.50.27:48710",
+		"10.10.114.23:48710",
+		"10.10.114.24:48710",
+		"10.10.114.25:48710",
+		"10.10.114.26:48710",
+		"10.10.114.27:48710",
+	}
+
+	remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
+	return remotAuctionRouter.RemoteAuction
+}
+
+func ketchupNATSClient() types.TestRepPoolClient {
+	natsAddrs := []string{
+		"10.10.50.20:4222",
+		"10.10.114.20:4222",
+	}
+
+	natsClient := yagnats.NewClient()
+	clusterInfo := &yagnats.ConnectionCluster{}
+
+	for _, addr := range natsAddrs {
+		clusterInfo.Members = append(clusterInfo.Members, &yagnats.ConnectionInfo{
+			Addr: addr,
+		})
+	}
+
+	err := natsClient.Connect(clusterInfo)
+	Ω(err).ShouldNot(HaveOccurred())
+
+	return repnatsclient.New(natsClient, timeout)
+}
+
+//reporting
 
 func startReport() {
 	reportName = fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
