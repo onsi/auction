@@ -176,7 +176,7 @@ func startRabbit() string {
 // external
 
 func launchExternalReps(communicationFlag string, communicationValue string) []string {
-	repNodeBinary, err := gexec.Build("github.com/onsi/auction/repnode")
+	repNodeBinary, err := gexec.Build("github.com/onsi/auction/simulation/repnode")
 	Ω(err).ShouldNot(HaveOccurred())
 
 	guids := []string{}
@@ -203,7 +203,7 @@ func launchExternalReps(communicationFlag string, communicationValue string) []s
 }
 
 func launchExternalAuctioneers(communicationFlag string, communicationValue string) types.AuctionCommunicator {
-	auctioneerNodeBinary, err := gexec.Build("github.com/onsi/auction/auctioneernode")
+	auctioneerNodeBinary, err := gexec.Build("github.com/onsi/auction/simulation/auctioneernode")
 	Ω(err).ShouldNot(HaveOccurred())
 
 	auctioneerHosts := []string{}
