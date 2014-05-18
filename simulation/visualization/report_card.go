@@ -70,7 +70,7 @@ func (r *SVGReport) drawResults() {
 	r.SVG.Text(border, 90, fmt.Sprintf("Score: %.2f | Wait Time: %.2fs | Communications: %.0f", stats.StatsSum(r.scores), stats.StatsSum(r.waitTimes), stats.StatsSum(r.communications)), `text-anchor:start;font-size:32px;font-family:Helvetica Neue`)
 }
 
-func (r *SVGReport) DrawReportCard(x, y int, report *types.Report) {
+func (r *SVGReport) DrawReportCard(x, y int, report *Report) {
 	r.SVG.Translate(x*ReportCardWidth, headerHeight+y*ReportCardHeight)
 
 	r.drawInstances(report)
@@ -85,7 +85,7 @@ func (r *SVGReport) DrawReportCard(x, y int, report *types.Report) {
 	r.SVG.Gend()
 }
 
-func (r *SVGReport) drawInstances(report *types.Report) {
+func (r *SVGReport) drawInstances(report *Report) {
 	y := border
 	for _, guid := range report.RepGuids {
 		x := border
@@ -104,7 +104,7 @@ func (r *SVGReport) drawInstances(report *types.Report) {
 	}
 }
 
-func (r *SVGReport) drawDurationsHistogram(report *types.Report) int {
+func (r *SVGReport) drawDurationsHistogram(report *Report) int {
 	waitTimes := []float64{}
 	for _, result := range report.AuctionResults {
 		waitTimes = append(waitTimes, result.Duration.Seconds())
@@ -123,7 +123,7 @@ func (r *SVGReport) drawDurationsHistogram(report *types.Report) int {
 	return yBottom + border //'cause of the translate
 }
 
-func (r *SVGReport) drawRoundsHistogram(report *types.Report, y int) int {
+func (r *SVGReport) drawRoundsHistogram(report *Report, y int) int {
 	rounds := []float64{}
 	for _, result := range report.AuctionResults {
 		rounds = append(rounds, float64(result.NumRounds))
@@ -142,7 +142,7 @@ func (r *SVGReport) drawRoundsHistogram(report *types.Report, y int) int {
 	return yBottom + y
 }
 
-func (r *SVGReport) drawText(report *types.Report, y int) {
+func (r *SVGReport) drawText(report *Report, y int) {
 	commStats := report.CommStats()
 	bidStats := report.BiddingTimeStats()
 	waitStats := report.WaitTimeStats()

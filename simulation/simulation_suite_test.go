@@ -49,13 +49,12 @@ var auctionDistributor *auctiondistributor.AuctionDistributor
 
 var svgReport *visualization.SVGReport
 var reportName string
-var reports []*types.Report
+var reports []*visualization.Report
 
 var sessionsToTerminate []*gexec.Session
 var natsRunner *natsrunner.NATSRunner
 var client types.TestRepPoolClient
 var guids []string
-var communicator types.AuctionCommunicator
 
 func init() {
 	flag.StringVar(&communicationMode, "communicationMode", "inprocess", "one of inprocess, nats, rabbit, ketchup")
@@ -64,7 +63,7 @@ func init() {
 
 	flag.StringVar(&(auctioneer.DefaultRules.Algorithm), "algorithm", auctioneer.DefaultRules.Algorithm, "the auction algorithm to use")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxRounds), "maxRounds", auctioneer.DefaultRules.MaxRounds, "the maximum number of rounds per auction")
-	flag.IntVar(&(auctioneer.DefaultRules.MaxBiddingPool), "maxBiddingPool", auctioneer.DefaultRules.MaxBiddingPool, "the maximum number of participants in the pool")
+	flag.Float64Var(&(auctioneer.DefaultRules.MaxBiddingPool), "maxBiddingPool", auctioneer.DefaultRules.MaxBiddingPool, "the maximum number of participants in the pool")
 
 	flag.IntVar(&maxConcurrent, "maxConcurrent", 20, "the maximum number of concurrent auctions to run")
 }
@@ -156,12 +155,6 @@ func buildInProcessReps() (types.TestRepPoolClient, []string) {
 
 	client := inprocess.New(repMap, map[string]bool{})
 	return client, guids
-}
-
-func inProcessAuctioneers(client types.RepPoolClient) types.AuctionCommunicator {
-	return func(auctionRequest types.AuctionRequest) types.AuctionResult {
-		return auctioneer.Auction(client, auctionRequest)
-	}
 }
 
 func startNATS() string {
@@ -281,7 +274,7 @@ func ketchupNATSClient() types.TestRepPoolClient {
 }
 
 func startReport() {
-	reportName = fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, maxConcurrent)
+	reportName = fmt.Sprintf("./runs/%s_%s_pool%.1f_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, maxConcurrent)
 	svgReport = visualization.StartSVGReport(reportName, 2, 3)
 	svgReport.DrawHeader(communicationMode, auctioneer.DefaultRules, maxConcurrent)
 }
@@ -290,7 +283,7 @@ func finishReport() {
 	svgReport.Done()
 	exec.Command("open", "-a", "safari", reportName).Run()
 
-	reportJSONName := fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, maxConcurrent)
+	reportJSONName := fmt.Sprintf("./runs/%s_%s_pool%.1f_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, maxConcurrent)
 	data, err := json.Marshal(reports)
 	Ω(err).ShouldNot(HaveOccurred())
 	ioutil.WriteFile(reportJSONName, data, 0777)

@@ -15,7 +15,7 @@ func reserveNBestAuction(client types.RepPoolClient, auctionRequest types.Auctio
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
 		//pick a subset
-		firstRoundReps := auctionRequest.RepGuids.RandomSubset(auctionRequest.Rules.MaxBiddingPool)
+		firstRoundReps := auctionRequest.RepGuids.RandomSubsetByFraction(auctionRequest.Rules.MaxBiddingPool)
 
 		//get everyone's score, if they're all full: bail
 		numCommunications += len(firstRoundReps)
@@ -33,6 +33,7 @@ func reserveNBestAuction(client types.RepPoolClient, auctionRequest types.Auctio
 		winners = winners[:max]
 
 		//ask them to reserve
+		numCommunications += len(winners)
 		winners = client.ReserveAndRecastVote(winners.Reps(), auctionRequest.Instance)
 		//if they're all out of space, try again
 		if winners.AllFailed() {

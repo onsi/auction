@@ -12,7 +12,7 @@ var AllBiddersFull = errors.New("all the bidders were full")
 var DefaultRules = types.AuctionRules{
 	Algorithm:      "reserve_n_best",
 	MaxRounds:      100,
-	MaxBiddingPool: 20,
+	MaxBiddingPool: 0.2,
 }
 
 func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) types.AuctionResult {

@@ -6,12 +6,15 @@ import (
 
 	"github.com/cheggaaa/pb"
 	"github.com/onsi/auction/auctioneer"
+	"github.com/onsi/auction/simulation/visualization"
 	"github.com/onsi/auction/types"
 )
 
+type AuctionCommunicator func(types.AuctionRequest) types.AuctionResult
+
 type AuctionDistributor struct {
 	client        types.TestRepPoolClient
-	communicator  types.AuctionCommunicator
+	communicator  AuctionCommunicator
 	maxConcurrent int
 }
 
@@ -33,7 +36,7 @@ func NewRemoteAuctionDistributor(hosts []string, client types.TestRepPoolClient,
 	}
 }
 
-func (ad *AuctionDistributor) HoldAuctionsFor(instances []types.Instance, representatives []string, rules types.AuctionRules) *types.Report {
+func (ad *AuctionDistributor) HoldAuctionsFor(instances []types.Instance, representatives []string, rules types.AuctionRules) *visualization.Report {
 	fmt.Printf("\nStarting Auctions\n\n")
 	bar := pb.StartNew(len(instances))
 
@@ -63,10 +66,10 @@ func (ad *AuctionDistributor) HoldAuctionsFor(instances []types.Instance, repres
 	bar.Finish()
 
 	duration := time.Since(t)
-	report := &types.Report{
+	report := &visualization.Report{
 		RepGuids:        representatives,
 		AuctionResults:  results,
-		InstancesByRep:  types.FetchAndSortInstances(ad.client, representatives),
+		InstancesByRep:  visualization.FetchAndSortInstances(ad.client, representatives),
 		AuctionDuration: duration,
 	}
 

@@ -14,7 +14,7 @@ func allReserveAuction(client types.RepPoolClient, auctionRequest types.AuctionR
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
 		//pick a subset
-		firstRoundReps := auctionRequest.RepGuids.RandomSubset(auctionRequest.Rules.MaxBiddingPool)
+		firstRoundReps := auctionRequest.RepGuids.RandomSubsetByFraction(auctionRequest.Rules.MaxBiddingPool)
 
 		//reserve everyone
 		numCommunications += len(firstRoundReps)

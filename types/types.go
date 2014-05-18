@@ -2,6 +2,8 @@ package types
 
 import (
 	"time"
+
+	"github.com/onsi/auction/util"
 )
 
 type AuctionRequest struct {
@@ -20,12 +22,10 @@ type AuctionResult struct {
 }
 
 type AuctionRules struct {
-	Algorithm      string `json:"alg"`
-	MaxRounds      int    `json:"mr"`
-	MaxBiddingPool int    `json:"mb"`
+	Algorithm      string  `json:"alg"`
+	MaxRounds      int     `json:"mr"`
+	MaxBiddingPool float64 `json:"mb"`
 }
-
-type AuctionCommunicator func(AuctionRequest) AuctionResult
 
 type RepPoolClient interface {
 	Vote(guids []string, instance Instance) VoteResults
@@ -41,4 +41,20 @@ type TestRepPoolClient interface {
 	Instances(guid string) []Instance
 	SetInstances(guid string, instances []Instance)
 	Reset(guid string)
+}
+
+type Instance struct {
+	AppGuid           string
+	InstanceGuid      string
+	RequiredResources int
+	Tentative         bool
+}
+
+func NewInstance(appGuid string, requiredResources int) Instance {
+	return Instance{
+		AppGuid:           appGuid,
+		InstanceGuid:      util.NewGuid("INS"),
+		RequiredResources: requiredResources,
+		Tentative:         false,
+	}
 }

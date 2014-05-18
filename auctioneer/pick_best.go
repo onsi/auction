@@ -14,7 +14,7 @@ func pickBestAuction(client types.RepPoolClient, auctionRequest types.AuctionReq
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
 		//pick a subset
-		firstRoundReps := auctionRequest.RepGuids.RandomSubset(auctionRequest.Rules.MaxBiddingPool)
+		firstRoundReps := auctionRequest.RepGuids.RandomSubsetByFraction(auctionRequest.Rules.MaxBiddingPool)
 
 		//get everyone's score, if they're all full: bail
 		numCommunications += len(firstRoundReps)

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/onsi/auction/types"
+	"github.com/onsi/auction/simulation/visualization"
 )
 
 func main() {
@@ -27,13 +27,13 @@ func main() {
 			out += "<th>" + alg + "</th>"
 		}
 		out += "</tr>"
-		// for _, poolConc := range [][]int{{20, 20}, {100, 20}, {20, 100}, {100, 100}, {20, 1000}, {100, 1000}} {
-		for _, poolConc := range [][]int{{20, 20}, {100, 20}, {20, 100}, {100, 100}} {
+		// for _, poolConc := range [][]int{{0.2, 20}, {1.0, 20}, {0.2, 100}, {1.0, 100}, {0.2, 1000}, {1.0, 1000}} {
+		for _, poolConc := range [][]float64{{0.2, 20}, {1.0, 20}, {0.2, 100}, {1.0, 100}} {
 			out += "<tr>"
-			out += fmt.Sprintf("<th>%s<br>%d Bidders<br>%d Concurrently</th>", comm, poolConc[0], poolConc[1])
+			out += fmt.Sprintf("<th>%s<br>%.1f Bidders<br>%.0f Concurrently</th>", comm, poolConc[0], poolConc[1])
 			for _, alg := range algorithms {
 				fmt.Println(comm, alg, poolConc)
-				fname := fmt.Sprintf("../imac/%s_%s_pool%d_conc%d", alg, comm, poolConc[0], poolConc[1])
+				fname := fmt.Sprintf("../imac/%s_%s_pool%.1f_conc%.0f", alg, comm, poolConc[0], poolConc[1])
 				_, err := os.Stat(fname + ".json")
 				if err != nil {
 					out += "<td>"
@@ -41,7 +41,7 @@ func main() {
 					continue
 				}
 				data, _ := ioutil.ReadFile(fname + ".json")
-				reports := []*types.Report{}
+				reports := []*visualization.Report{}
 				json.Unmarshal(data, &reports)
 				scores := 0.0
 				communication := 0.0
