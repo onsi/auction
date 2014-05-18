@@ -6,8 +6,6 @@ import (
 	"github.com/onsi/auction/util"
 )
 
-type RepGuids []string
-
 func (r RepGuids) RandomSubsetByCount(n int) RepGuids {
 	if len(r) < n {
 		return r

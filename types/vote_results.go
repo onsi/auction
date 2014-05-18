@@ -6,14 +6,6 @@ import (
 	"github.com/onsi/auction/util"
 )
 
-type VoteResult struct {
-	Rep   string  `json:"r"`
-	Score float64 `json:"s"`
-	Error string  `json:"e"`
-}
-
-type VoteResults []VoteResult
-
 func (a VoteResults) Len() int           { return len(a) }
 func (a VoteResults) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a VoteResults) Less(i, j int) bool { return a[i].Score < a[j].Score }

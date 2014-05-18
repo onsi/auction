@@ -6,14 +6,14 @@ import (
 	"log"
 
 	"github.com/cloudfoundry/yagnats"
-	"github.com/onsi/auction/representative"
+	"github.com/onsi/auction/auctionrep"
 	"github.com/onsi/auction/types"
 )
 
 var errorResponse = []byte("error")
 var successResponse = []byte("ok")
 
-func Start(natsAddrs []string, rep *representative.Representative) {
+func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 	client := yagnats.NewClient()
 
 	clusterInfo := &yagnats.ConnectionCluster{}
@@ -31,18 +31,22 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 
 	guid := rep.Guid()
 
-	client.Subscribe(guid+".guid", func(msg *yagnats.Message) {
-		jguid, _ := json.Marshal(rep.Guid())
-		client.Publish(msg.ReplyTo, jguid)
-	})
+	testAuctionRep := func() auctionrep.TestAuctionRep {
+		tar, ok := rep.(auctionrep.TestAuctionRep)
+		if !ok {
+			panic("attempting to do a test-like thing with a non-test-like rep")
+		}
+
+		return tar
+	}
 
 	client.Subscribe(guid+".total_resources", func(msg *yagnats.Message) {
-		jresources, _ := json.Marshal(rep.TotalResources())
+		jresources, _ := json.Marshal(testAuctionRep().TotalResources())
 		client.Publish(msg.ReplyTo, jresources)
 	})
 
 	client.Subscribe(guid+".reset", func(msg *yagnats.Message) {
-		rep.Reset()
+		testAuctionRep().Reset()
 		client.Publish(msg.ReplyTo, successResponse)
 	})
 
@@ -54,12 +58,12 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 			client.Publish(msg.ReplyTo, errorResponse)
 		}
 
-		rep.SetInstances(instances)
+		testAuctionRep().SetInstances(instances)
 		client.Publish(msg.ReplyTo, successResponse)
 	})
 
 	client.Subscribe(guid+".instances", func(msg *yagnats.Message) {
-		jinstances, _ := json.Marshal(rep.Instances())
+		jinstances, _ := json.Marshal(testAuctionRep().Instances())
 		client.Publish(msg.ReplyTo, jinstances)
 	})
 
@@ -80,7 +84,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 			client.Publish(msg.ReplyTo, payload)
 		}()
 
-		score, err := rep.Vote(inst)
+		score, err := rep.Score(inst)
 		if err != nil {
 			response.Error = err.Error()
 			return
@@ -106,7 +110,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 			client.Publish(msg.ReplyTo, payload)
 		}()
 
-		score, err := rep.ReserveAndRecastVote(inst)
+		score, err := rep.ScoreThenTentativelyReserve(inst)
 		if err != nil {
 			response.Error = err.Error()
 			return
@@ -129,7 +133,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 			return
 		}
 
-		rep.Release(inst)
+		rep.ReleaseReservation(inst) //need to handle error
 
 		responsePayload = successResponse
 	})
@@ -148,7 +152,7 @@ func Start(natsAddrs []string, rep *representative.Representative) {
 			return
 		}
 
-		rep.Claim(inst)
+		rep.Claim(inst) //need to handle error
 
 		responsePayload = successResponse
 	})

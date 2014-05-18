@@ -50,10 +50,6 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 	numNew := 0
 	for _, guid := range representatives {
 		repString := fmt.Sprintf(guidFormat, guid)
-		inprocessClient, ok := client.(*inprocess.InprocessClient)
-		if ok && inprocessClient.FlakyReps[guid] {
-			repString = fmt.Sprintf("%s"+guidFormat+"%s", redColor, repString, defaultStyle)
-		}
 
 		instanceString := ""
 		instances := client.Instances(guid)

@@ -11,11 +11,12 @@ import (
 	"github.com/cloudfoundry/gunk/natsrunner"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
+	"github.com/onsi/auction/auctionrep"
 	"github.com/onsi/auction/communication/inprocess"
 	"github.com/onsi/auction/communication/nats/repnatsclient"
 	"github.com/onsi/auction/communication/rabbit/reprabbitclient"
-	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/simulation/auctiondistributor"
+	"github.com/onsi/auction/simulation/simulationrep"
 	"github.com/onsi/auction/simulation/visualization"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -145,15 +146,15 @@ func buildInProcessReps() (types.TestRepPoolClient, []string) {
 	inprocess.Flakiness = 0.95
 
 	guids := []string{}
-	repMap := map[string]*representative.Representative{}
+	repMap := map[string]auctionrep.AuctionRep{}
 
 	for i := 0; i < numReps; i++ {
 		guid := util.NewGuid("REP")
 		guids = append(guids, guid)
-		repMap[guid] = representative.New(guid, repResources)
+		repMap[guid] = simulationrep.New(guid, repResources)
 	}
 
-	client := inprocess.New(repMap, map[string]bool{})
+	client := inprocess.New(repMap)
 	return client, guids
 }
 

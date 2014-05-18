@@ -27,21 +27,15 @@ type AuctionRules struct {
 	MaxBiddingPool float64 `json:"mb"`
 }
 
-type RepPoolClient interface {
-	Vote(guids []string, instance Instance) VoteResults
-	ReserveAndRecastVote(guids []string, instance Instance) VoteResults
-	Release(guids []string, instance Instance)
-	Claim(guid string, instance Instance)
+type RepGuids []string
+
+type VoteResult struct {
+	Rep   string  `json:"r"`
+	Score float64 `json:"s"`
+	Error string  `json:"e"`
 }
 
-type TestRepPoolClient interface {
-	RepPoolClient
-
-	TotalResources(guid string) int
-	Instances(guid string) []Instance
-	SetInstances(guid string, instances []Instance)
-	Reset(guid string)
-}
+type VoteResults []VoteResult
 
 type Instance struct {
 	AppGuid           string
@@ -57,4 +51,20 @@ func NewInstance(appGuid string, requiredResources int) Instance {
 		RequiredResources: requiredResources,
 		Tentative:         false,
 	}
+}
+
+type RepPoolClient interface {
+	Vote(guids []string, instance Instance) VoteResults
+	ReserveAndRecastVote(guids []string, instance Instance) VoteResults
+	Release(guids []string, instance Instance)
+	Claim(guid string, instance Instance)
+}
+
+type TestRepPoolClient interface {
+	RepPoolClient
+
+	TotalResources(guid string) int
+	Instances(guid string) []Instance
+	SetInstances(guid string, instances []Instance)
+	Reset(guid string)
 }

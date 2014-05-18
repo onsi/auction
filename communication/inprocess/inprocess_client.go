@@ -3,7 +3,7 @@ package inprocess
 import (
 	"time"
 
-	"github.com/onsi/auction/representative"
+	"github.com/onsi/auction/auctionrep"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
 )
@@ -14,49 +14,64 @@ var Timeout time.Duration
 var Flakiness = 1.0
 
 type InprocessClient struct {
-	reps      map[string]*representative.Representative
-	FlakyReps map[string]bool
+	reps map[string]auctionrep.AuctionRep
 }
 
-func New(reps map[string]*representative.Representative, flakyReps map[string]bool) *InprocessClient {
+func New(reps map[string]auctionrep.AuctionRep) *InprocessClient {
 	return &InprocessClient{
-		reps:      reps,
-		FlakyReps: flakyReps,
+		reps: reps,
 	}
 }
 
-func (rep *InprocessClient) beSlowAndFlakey(guid string) bool {
-	if rep.FlakyReps[guid] {
-		if util.Flake(Flakiness) {
-			time.Sleep(Timeout)
-			return true
-		}
+func randomSleep(min time.Duration, max time.Duration, timeout time.Duration) bool {
+	sleepDuration := time.Duration(util.R.Float64()*float64(max-min) + float64(min))
+	if sleepDuration <= timeout {
+		time.Sleep(sleepDuration)
+		return true
+	} else {
+		time.Sleep(timeout)
+		return false
 	}
-	ok := util.RandomSleep(LatencyMin, LatencyMax, Timeout)
-	if !ok {
+}
+
+func (client *InprocessClient) beSlowAndPossiblyTimeout(guid string) bool {
+	sleepDuration := time.Duration(util.R.Float64()*float64(LatencyMax-LatencyMin) + float64(LatencyMin))
+
+	if sleepDuration <= Timeout {
+		time.Sleep(sleepDuration)
+		return false
+	} else {
+		time.Sleep(Timeout)
 		return true
 	}
-
-	return false
 }
 
-func (rep *InprocessClient) TotalResources(guid string) int {
-	return rep.reps[guid].TotalResources()
+func (client *InprocessClient) testAuctionRep(guid string) auctionrep.TestAuctionRep {
+	tar, ok := client.reps[guid].(auctionrep.TestAuctionRep)
+	if !ok {
+		panic("attempting to do a test-like thing with a non-test-like rep")
+	}
+
+	return tar
 }
 
-func (rep *InprocessClient) Instances(guid string) []types.Instance {
-	return rep.reps[guid].Instances()
+func (client *InprocessClient) TotalResources(guid string) int {
+	return client.testAuctionRep(guid).TotalResources()
 }
 
-func (rep *InprocessClient) SetInstances(guid string, instances []types.Instance) {
-	rep.reps[guid].SetInstances(instances)
+func (client *InprocessClient) Instances(guid string) []types.Instance {
+	return client.testAuctionRep(guid).Instances()
 }
 
-func (rep *InprocessClient) Reset(guid string) {
-	rep.reps[guid].Reset()
+func (client *InprocessClient) SetInstances(guid string, instances []types.Instance) {
+	client.testAuctionRep(guid).SetInstances(instances)
 }
 
-func (rep *InprocessClient) vote(guid string, instance types.Instance, c chan types.VoteResult) {
+func (client *InprocessClient) Reset(guid string) {
+	client.testAuctionRep(guid).Reset()
+}
+
+func (client *InprocessClient) vote(guid string, instance types.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -64,12 +79,12 @@ func (rep *InprocessClient) vote(guid string, instance types.Instance, c chan ty
 		c <- result
 	}()
 
-	if rep.beSlowAndFlakey(guid) {
+	if client.beSlowAndPossiblyTimeout(guid) {
 		result.Error = "timeout"
 		return
 	}
 
-	score, err := rep.reps[guid].Vote(instance)
+	score, err := client.reps[guid].Score(instance)
 	if err != nil {
 		result.Error = err.Error()
 		return
@@ -79,10 +94,10 @@ func (rep *InprocessClient) vote(guid string, instance types.Instance, c chan ty
 	return
 }
 
-func (rep *InprocessClient) Vote(representatives []string, instance types.Instance) types.VoteResults {
+func (client *InprocessClient) Vote(representatives []string, instance types.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range representatives {
-		go rep.vote(guid, instance, c)
+		go client.vote(guid, instance, c)
 	}
 
 	results := types.VoteResults{}
@@ -93,7 +108,7 @@ func (rep *InprocessClient) Vote(representatives []string, instance types.Instan
 	return results
 }
 
-func (rep *InprocessClient) reserveAndRecastVote(guid string, instance types.Instance, c chan types.VoteResult) {
+func (client *InprocessClient) reserveAndRecastVote(guid string, instance types.Instance, c chan types.VoteResult) {
 	result := types.VoteResult{
 		Rep: guid,
 	}
@@ -101,12 +116,12 @@ func (rep *InprocessClient) reserveAndRecastVote(guid string, instance types.Ins
 		c <- result
 	}()
 
-	if rep.beSlowAndFlakey(guid) {
+	if client.beSlowAndPossiblyTimeout(guid) {
 		result.Error = "timedout"
 		return
 	}
 
-	score, err := rep.reps[guid].ReserveAndRecastVote(instance)
+	score, err := client.reps[guid].ScoreThenTentativelyReserve(instance)
 	if err != nil {
 		result.Error = err.Error()
 		return
@@ -116,10 +131,10 @@ func (rep *InprocessClient) reserveAndRecastVote(guid string, instance types.Ins
 	return
 }
 
-func (rep *InprocessClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
+func (client *InprocessClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
 	c := make(chan types.VoteResult)
 	for _, guid := range guids {
-		go rep.reserveAndRecastVote(guid, instance, c)
+		go client.reserveAndRecastVote(guid, instance, c)
 	}
 
 	results := types.VoteResults{}
@@ -130,12 +145,12 @@ func (rep *InprocessClient) ReserveAndRecastVote(guids []string, instance types.
 	return results
 }
 
-func (rep *InprocessClient) Release(guids []string, instance types.Instance) {
+func (client *InprocessClient) Release(guids []string, instance types.Instance) {
 	c := make(chan bool)
 	for _, guid := range guids {
 		go func(guid string) {
-			rep.beSlowAndFlakey(guid)
-			rep.reps[guid].Release(instance)
+			client.beSlowAndPossiblyTimeout(guid)
+			client.reps[guid].ReleaseReservation(instance)
 			c <- true
 		}(guid)
 	}
@@ -145,8 +160,8 @@ func (rep *InprocessClient) Release(guids []string, instance types.Instance) {
 	}
 }
 
-func (rep *InprocessClient) Claim(guid string, instance types.Instance) {
-	rep.beSlowAndFlakey(guid)
+func (client *InprocessClient) Claim(guid string, instance types.Instance) {
+	client.beSlowAndPossiblyTimeout(guid)
 
-	rep.reps[guid].Claim(instance)
+	client.reps[guid].Claim(instance)
 }

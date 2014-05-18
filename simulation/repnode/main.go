@@ -6,7 +6,7 @@ import (
 
 	"github.com/onsi/auction/communication/nats/repnatsserver"
 	"github.com/onsi/auction/communication/rabbit/reprabbitserver"
-	"github.com/onsi/auction/representative"
+	"github.com/onsi/auction/simulation/simulationrep"
 )
 
 var resources = flag.Int("resources", 100, "total available resources")
@@ -25,7 +25,7 @@ func main() {
 		panic("need nats or rabbit addr")
 	}
 
-	rep := representative.New(*guid, *resources)
+	rep := simulationrep.New(*guid, *resources)
 
 	if *natsAddrs != "" {
 		go repnatsserver.Start(strings.Split(*natsAddrs, ","), rep)

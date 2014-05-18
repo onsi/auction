@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/onsi/auction/auctionrep"
 	"github.com/onsi/auction/communication/rabbit/rabbitclient"
-	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
 )
 
 var errorResponse = []byte("error")
 var successResponse = []byte("ok")
 
-func Start(rabbitUrl string, rep *representative.Representative) {
+func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 	println("RABBIT", rabbitUrl)
 	server := rabbitclient.NewServer(rep.Guid(), rabbitUrl)
 	err := server.ConnectAndEstablish()
@@ -20,18 +20,22 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 		panic(err)
 	}
 
-	server.Handle("guid", func(_ []byte) []byte {
-		out, _ := json.Marshal(rep.Guid())
-		return out
-	})
+	testAuctionRep := func() auctionrep.TestAuctionRep {
+		tar, ok := rep.(auctionrep.TestAuctionRep)
+		if !ok {
+			panic("attempting to do a test-like thing with a non-test-like rep")
+		}
+
+		return tar
+	}
 
 	server.Handle("total_resources", func(_ []byte) []byte {
-		out, _ := json.Marshal(rep.TotalResources())
+		out, _ := json.Marshal(testAuctionRep().TotalResources())
 		return out
 	})
 
 	server.Handle("reset", func(_ []byte) []byte {
-		rep.Reset()
+		testAuctionRep().Reset()
 		return successResponse
 	})
 
@@ -43,12 +47,12 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 			return errorResponse
 		}
 
-		rep.SetInstances(instances)
+		testAuctionRep().SetInstances(instances)
 		return successResponse
 	})
 
 	server.Handle("instances", func(_ []byte) []byte {
-		out, _ := json.Marshal(rep.Instances())
+		out, _ := json.Marshal(testAuctionRep().Instances())
 		return out
 	})
 
@@ -64,7 +68,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 			Rep: rep.Guid(),
 		}
 
-		score, err := rep.Vote(inst)
+		score, err := rep.Score(inst)
 		if err != nil {
 			response.Error = err.Error()
 		} else {
@@ -87,7 +91,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 			Rep: rep.Guid(),
 		}
 
-		score, err := rep.ReserveAndRecastVote(inst)
+		score, err := rep.ScoreThenTentativelyReserve(inst)
 		if err != nil {
 			response.Error = err.Error()
 		} else {
@@ -106,7 +110,7 @@ func Start(rabbitUrl string, rep *representative.Representative) {
 			return errorResponse
 		}
 
-		rep.Release(instance)
+		rep.ReleaseReservation(instance)
 
 		return successResponse
 	})
