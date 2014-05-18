@@ -31,12 +31,13 @@ func (rep *RepNatsClient) publishWithTimeout(guid string, subject string, req in
 	replyTo := util.RandomGuid()
 	c := make(chan []byte, 1)
 
-	_, err = rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+	subscriptionID, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
 		c <- msg.Payload
 	})
 	if err != nil {
 		return err
 	}
+	defer rep.client.Unsubscribe(subscriptionID)
 
 	payload := []byte{}
 	if req != nil {
@@ -61,7 +62,6 @@ func (rep *RepNatsClient) publishWithTimeout(guid string, subject string, req in
 		return nil
 
 	case <-time.After(rep.timeout):
-		// rep.client.Unsubscribe(sid)
 		return TimeoutError
 	}
 }
@@ -104,9 +104,12 @@ func (rep *RepNatsClient) batch(subject string, guids []string, instance types.I
 	replyTo := util.RandomGuid()
 
 	allReceived := new(sync.WaitGroup)
+	allReceived.Add(len(guids))
 	responses := make(chan types.VoteResult, len(guids))
 
-	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+	n := 0
+	subscriptionID, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+		n++
 		defer allReceived.Done()
 		var result types.VoteResult
 		err := json.Unmarshal(msg.Payload, &result)
@@ -121,9 +124,9 @@ func (rep *RepNatsClient) batch(subject string, guids []string, instance types.I
 		return types.VoteResults{}
 	}
 
-	payload, _ := json.Marshal(instance)
+	defer rep.client.Unsubscribe(subscriptionID)
 
-	allReceived.Add(len(guids))
+	payload, _ := json.Marshal(instance)
 
 	for _, guid := range guids {
 		rep.client.PublishWithReplyTo(guid+"."+subject, replyTo, payload)
@@ -167,8 +170,9 @@ func (rep *RepNatsClient) Release(guids []string, instance types.Instance) {
 	replyTo := util.RandomGuid()
 
 	allReceived := new(sync.WaitGroup)
+	allReceived.Add(len(guids))
 
-	_, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
+	subscriptionID, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
 		allReceived.Done()
 	})
 
@@ -176,9 +180,9 @@ func (rep *RepNatsClient) Release(guids []string, instance types.Instance) {
 		return
 	}
 
-	payload, _ := json.Marshal(instance)
+	defer rep.client.Unsubscribe(subscriptionID)
 
-	allReceived.Add(len(guids))
+	payload, _ := json.Marshal(instance)
 
 	for _, guid := range guids {
 		rep.client.PublishWithReplyTo(guid+".release", replyTo, payload)

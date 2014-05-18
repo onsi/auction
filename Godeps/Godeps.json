@@ -23,12 +23,8 @@
 			"Rev": "21adc866d245fff747352415cc036b5ec3c3d4f5"
 		},
 		{
-			"ImportPath": "github.com/cloudfoundry/storeadapter/workerpool",
-			"Rev": "c21b707184aa2b2b4a8c8a25e90bc36011dd147d"
-		},
-		{
 			"ImportPath": "github.com/cloudfoundry/yagnats",
-			"Rev": "2c197cfdcd587274614ab63fef96bbaaa1c01f10"
+			"Rev": "63a5c640e7a95f541399435c1b6e344e0b7dcc27"
 		},
 		{
 			"ImportPath": "github.com/onsi/ginkgo",
