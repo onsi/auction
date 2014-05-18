@@ -11,8 +11,8 @@ import (
 
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
-	"github.com/onsi/auction/nats/repnatsclient"
-	"github.com/onsi/auction/rabbit/reprabbitclient"
+	"github.com/onsi/auction/communication/nats/repnatsclient"
+	"github.com/onsi/auction/communication/rabbit/reprabbitclient"
 	"github.com/onsi/auction/types"
 )
 

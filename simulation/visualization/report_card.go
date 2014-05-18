@@ -2,12 +2,13 @@ package visualization
 
 import (
 	"fmt"
-	"github.com/GaryBoone/GoStats/stats"
-	. "github.com/onsi/gomega"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/GaryBoone/GoStats/stats"
+	. "github.com/onsi/gomega"
 
 	"github.com/ajstarks/svgo"
 	"github.com/onsi/auction/types"
@@ -59,9 +60,10 @@ func (r *SVGReport) Done() {
 	r.f.Close()
 }
 
-func (r *SVGReport) DrawHeader(communicationMode string, rules types.AuctionRules) {
+func (r *SVGReport) DrawHeader(communicationMode string, rules types.AuctionRules, maxConcurrent int) {
 	rulesString := fmt.Sprintf("%#v", rules)
-	r.SVG.Text(border, 40, communicationMode+" - "+rulesString[19:len(rulesString)-1], `text-anchor:start;font-size:32px;font-family:Helvetica Neue`)
+	header := fmt.Sprintf("%s - MaxConcurrent:%d - %s ", communicationMode, maxConcurrent, rulesString[19:len(rulesString)-1])
+	r.SVG.Text(border, 40, header, `text-anchor:start;font-size:32px;font-family:Helvetica Neue`)
 }
 
 func (r *SVGReport) drawResults() {

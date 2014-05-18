@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"strings"
-	"github.com/onsi/auction/nats/repnatsserver"
-	"github.com/onsi/auction/rabbit/reprabbitserver"
+
+	"github.com/onsi/auction/communication/nats/repnatsserver"
+	"github.com/onsi/auction/communication/rabbit/reprabbitserver"
 	"github.com/onsi/auction/representative"
 )
 

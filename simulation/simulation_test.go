@@ -72,7 +72,7 @@ var _ = Describe("Auction", func() {
 						instances := generateUniqueInstances(napps[i] / 2)
 						instances = append(instances, generateInstancesWithRandomSVGColors(napps[i]/2)...)
 
-						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], auctioneer.DefaultRules, communicator)
+						report := auctionDistributor.HoldAuctionsFor(instances, guids[:nexec[i]], auctioneer.DefaultRules)
 
 						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, auctioneer.DefaultRules)
 
@@ -101,7 +101,7 @@ var _ = Describe("Auction", func() {
 					It("should distribute evenly", func() {
 						instances := generateUniqueInstances(napps[i])
 
-						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], auctioneer.DefaultRules, communicator)
+						report := auctionDistributor.HoldAuctionsFor(instances, guids[:nexec[i]], auctioneer.DefaultRules)
 
 						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, auctioneer.DefaultRules)
 
@@ -129,7 +129,7 @@ var _ = Describe("Auction", func() {
 					It("should distribute evenly", func() {
 						instances := generateInstancesForAppGuid(napps[i], "red")
 
-						report := auctioneer.HoldAuctionsFor(client, instances, guids[:nexec[i]], auctioneer.DefaultRules, communicator)
+						report := auctionDistributor.HoldAuctionsFor(instances, guids[:nexec[i]], auctioneer.DefaultRules)
 
 						visualization.PrintReport(client, report.AuctionResults, guids[:nexec[i]], report.AuctionDuration, auctioneer.DefaultRules)
 

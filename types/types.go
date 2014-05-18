@@ -23,7 +23,6 @@ type AuctionRules struct {
 	Algorithm      string `json:"alg"`
 	MaxRounds      int    `json:"mr"`
 	MaxBiddingPool int    `json:"mb"`
-	MaxConcurrent  int    `json:"mc"`
 }
 
 type AuctionCommunicator func(AuctionRequest) AuctionResult

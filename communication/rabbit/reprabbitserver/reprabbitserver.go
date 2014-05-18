@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/onsi/auction/rabbit/rabbitclient"
+	"github.com/onsi/auction/communication/rabbit/rabbitclient"
 	"github.com/onsi/auction/representative"
 	"github.com/onsi/auction/types"
 )

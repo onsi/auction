@@ -11,10 +11,11 @@ import (
 	"github.com/cloudfoundry/gunk/natsrunner"
 	"github.com/cloudfoundry/yagnats"
 	"github.com/onsi/auction/auctioneer"
-	"github.com/onsi/auction/inprocess"
-	"github.com/onsi/auction/nats/repnatsclient"
-	"github.com/onsi/auction/rabbit/reprabbitclient"
+	"github.com/onsi/auction/communication/inprocess"
+	"github.com/onsi/auction/communication/nats/repnatsclient"
+	"github.com/onsi/auction/communication/rabbit/reprabbitclient"
 	"github.com/onsi/auction/representative"
+	"github.com/onsi/auction/simulation/auctiondistributor"
 	"github.com/onsi/auction/simulation/visualization"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -41,7 +42,10 @@ const numAuctioneers = 10
 const numReps = 100
 const repResources = 100
 
+var maxConcurrent int
+
 var timeout time.Duration
+var auctionDistributor *auctiondistributor.AuctionDistributor
 
 var svgReport *visualization.SVGReport
 var reportName string
@@ -61,7 +65,8 @@ func init() {
 	flag.StringVar(&(auctioneer.DefaultRules.Algorithm), "algorithm", auctioneer.DefaultRules.Algorithm, "the auction algorithm to use")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxRounds), "maxRounds", auctioneer.DefaultRules.MaxRounds, "the maximum number of rounds per auction")
 	flag.IntVar(&(auctioneer.DefaultRules.MaxBiddingPool), "maxBiddingPool", auctioneer.DefaultRules.MaxBiddingPool, "the maximum number of participants in the pool")
-	flag.IntVar(&(auctioneer.DefaultRules.MaxConcurrent), "maxConcurrent", auctioneer.DefaultRules.MaxConcurrent, "the maximum number of concurrent auctions to run")
+
+	flag.IntVar(&maxConcurrent, "maxConcurrent", 20, "the maximum number of concurrent auctions to run")
 }
 
 func TestAuction(t *testing.T) {
@@ -76,6 +81,7 @@ var _ = BeforeSuite(func() {
 	startReport()
 
 	sessionsToTerminate = []*gexec.Session{}
+	hosts := []string{}
 	switch communicationMode {
 	case InProcess:
 		client, guids = buildInProcessReps()
@@ -87,27 +93,29 @@ var _ = BeforeSuite(func() {
 		client = repnatsclient.New(natsRunner.MessageBus, timeout)
 		guids = launchExternalReps("-natsAddrs", natsAddrs)
 		if auctioneerMode == Remote {
-			communicator = launchExternalAuctioneers("-natsAddrs", natsAddrs)
+			hosts = launchExternalAuctioneers("-natsAddrs", natsAddrs)
 		}
 	case Rabbit:
 		rabbitAddr := startRabbit()
 		client = reprabbitclient.New(rabbitAddr, timeout)
 		guids = launchExternalReps("-rabbitAddr", rabbitAddr)
 		if auctioneerMode == Remote {
-			communicator = launchExternalAuctioneers("-rabbitAddr", rabbitAddr)
+			hosts = launchExternalAuctioneers("-rabbitAddr", rabbitAddr)
 		}
 	case KetchupNATS:
 		guids = computeKetchupGuids()
 		client = ketchupNATSClient()
 		if auctioneerMode == Remote {
-			communicator = ketchupAuctioneerCommunicator()
+			hosts = ketchupAuctioneerHosts()
 		}
 	default:
 		panic(fmt.Sprintf("unknown communication mode: %s", communicationMode))
 	}
 
 	if auctioneerMode == InProcess {
-		communicator = inProcessAuctioneers(client)
+		auctionDistributor = auctiondistributor.NewInProcessAuctionDistributor(client, maxConcurrent)
+	} else if auctioneerMode == Remote {
+		auctionDistributor = auctiondistributor.NewRemoteAuctionDistributor(hosts, client, maxConcurrent)
 	}
 })
 
@@ -131,7 +139,6 @@ var _ = AfterSuite(func() {
 	}
 })
 
-// In-Process
 func buildInProcessReps() (types.TestRepPoolClient, []string) {
 	inprocess.LatencyMin = 2 * time.Millisecond
 	inprocess.LatencyMax = 12 * time.Millisecond
@@ -173,8 +180,6 @@ func startRabbit() string {
 	return "amqp://127.0.0.1"
 }
 
-// external
-
 func launchExternalReps(communicationFlag string, communicationValue string) []string {
 	repNodeBinary, err := gexec.Build("github.com/onsi/auction/simulation/repnode")
 	Ω(err).ShouldNot(HaveOccurred())
@@ -202,7 +207,7 @@ func launchExternalReps(communicationFlag string, communicationValue string) []s
 	return guids
 }
 
-func launchExternalAuctioneers(communicationFlag string, communicationValue string) types.AuctionCommunicator {
+func launchExternalAuctioneers(communicationFlag string, communicationValue string) []string {
 	auctioneerNodeBinary, err := gexec.Build("github.com/onsi/auction/simulation/auctioneernode")
 	Ω(err).ShouldNot(HaveOccurred())
 
@@ -223,11 +228,8 @@ func launchExternalAuctioneers(communicationFlag string, communicationValue stri
 		sessionsToTerminate = append(sessionsToTerminate, sess)
 	}
 
-	remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
-	return remotAuctionRouter.RemoteAuction
+	return auctioneerHosts
 }
-
-//Ketchup
 
 func computeKetchupGuids() []string {
 	guids = []string{}
@@ -242,8 +244,8 @@ func computeKetchupGuids() []string {
 	return guids
 }
 
-func ketchupAuctioneerCommunicator() types.AuctionCommunicator {
-	auctioneerHosts := []string{
+func ketchupAuctioneerHosts() []string {
+	return []string{
 		"10.10.50.23:48710",
 		"10.10.50.24:48710",
 		"10.10.50.25:48710",
@@ -255,9 +257,6 @@ func ketchupAuctioneerCommunicator() types.AuctionCommunicator {
 		"10.10.114.26:48710",
 		"10.10.114.27:48710",
 	}
-
-	remotAuctionRouter := auctioneer.NewHTTPRemoteAuctions(auctioneerHosts)
-	return remotAuctionRouter.RemoteAuction
 }
 
 func ketchupNATSClient() types.TestRepPoolClient {
@@ -281,19 +280,17 @@ func ketchupNATSClient() types.TestRepPoolClient {
 	return repnatsclient.New(natsClient, timeout)
 }
 
-//reporting
-
 func startReport() {
-	reportName = fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	reportName = fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.svg", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, maxConcurrent)
 	svgReport = visualization.StartSVGReport(reportName, 2, 3)
-	svgReport.DrawHeader(communicationMode, auctioneer.DefaultRules)
+	svgReport.DrawHeader(communicationMode, auctioneer.DefaultRules, maxConcurrent)
 }
 
 func finishReport() {
 	svgReport.Done()
 	exec.Command("open", "-a", "safari", reportName).Run()
 
-	reportJSONName := fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, auctioneer.DefaultRules.MaxConcurrent)
+	reportJSONName := fmt.Sprintf("./runs/%s_%s_pool%d_conc%d.json", auctioneer.DefaultRules.Algorithm, communicationMode, auctioneer.DefaultRules.MaxBiddingPool, maxConcurrent)
 	data, err := json.Marshal(reports)
 	Ω(err).ShouldNot(HaveOccurred())
 	ioutil.WriteFile(reportJSONName, data, 0777)
