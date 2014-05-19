@@ -22,8 +22,8 @@ func Auction(client types.RepPoolClient, auctionRequest types.AuctionRequest) ty
 
 	t := time.Now()
 	switch auctionRequest.Rules.Algorithm {
-	case "all_revote":
-		result.Winner, result.NumRounds, result.NumCommunications = allRevoteAuction(client, auctionRequest)
+	case "all_rescore":
+		result.Winner, result.NumRounds, result.NumCommunications = allRescoreAuction(client, auctionRequest)
 	case "all_reserve":
 		result.Winner, result.NumRounds, result.NumCommunications = allReserveAuction(client, auctionRequest)
 	case "pick_among_best":

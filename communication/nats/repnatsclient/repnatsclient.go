@@ -100,18 +100,18 @@ func (rep *RepNatsClient) SetInstances(guid string, instances []types.Instance) 
 	}
 }
 
-func (rep *RepNatsClient) batch(subject string, guids []string, instance types.Instance) types.VoteResults {
+func (rep *RepNatsClient) batch(subject string, guids []string, instance types.Instance) types.ScoreResults {
 	replyTo := util.RandomGuid()
 
 	allReceived := new(sync.WaitGroup)
 	allReceived.Add(len(guids))
-	responses := make(chan types.VoteResult, len(guids))
+	responses := make(chan types.ScoreResult, len(guids))
 
 	n := 0
 	subscriptionID, err := rep.client.Subscribe(replyTo, func(msg *yagnats.Message) {
 		n++
 		defer allReceived.Done()
-		var result types.VoteResult
+		var result types.ScoreResult
 		err := json.Unmarshal(msg.Payload, &result)
 		if err != nil {
 			return
@@ -121,7 +121,7 @@ func (rep *RepNatsClient) batch(subject string, guids []string, instance types.I
 	})
 
 	if err != nil {
-		return types.VoteResults{}
+		return types.ScoreResults{}
 	}
 
 	defer rep.client.Unsubscribe(subscriptionID)
@@ -144,7 +144,7 @@ func (rep *RepNatsClient) batch(subject string, guids []string, instance types.I
 		println("TIMING OUT!!")
 	}
 
-	results := types.VoteResults{}
+	results := types.ScoreResults{}
 
 	for {
 		select {
@@ -158,15 +158,15 @@ func (rep *RepNatsClient) batch(subject string, guids []string, instance types.I
 	return results
 }
 
-func (rep *RepNatsClient) Vote(guids []string, instance types.Instance) types.VoteResults {
-	return rep.batch("vote", guids, instance)
+func (rep *RepNatsClient) Score(guids []string, instance types.Instance) types.ScoreResults {
+	return rep.batch("score", guids, instance)
 }
 
-func (rep *RepNatsClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
-	return rep.batch("reserve_and_recast_vote", guids, instance)
+func (rep *RepNatsClient) ScoreThenTentativelyReserve(guids []string, instance types.Instance) types.ScoreResults {
+	return rep.batch("score_then_tentatively_reserve", guids, instance)
 }
 
-func (rep *RepNatsClient) Release(guids []string, instance types.Instance) {
+func (rep *RepNatsClient) ReleaseReservation(guids []string, instance types.Instance) {
 	replyTo := util.RandomGuid()
 
 	allReceived := new(sync.WaitGroup)
@@ -185,7 +185,7 @@ func (rep *RepNatsClient) Release(guids []string, instance types.Instance) {
 	payload, _ := json.Marshal(instance)
 
 	for _, guid := range guids {
-		rep.client.PublishWithReplyTo(guid+".release", replyTo, payload)
+		rep.client.PublishWithReplyTo(guid+".release-reservation", replyTo, payload)
 	}
 
 	done := make(chan struct{})

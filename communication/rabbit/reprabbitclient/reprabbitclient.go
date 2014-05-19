@@ -93,14 +93,14 @@ func (rep *RepRabbitClient) SetInstances(guid string, instances []types.Instance
 	}
 }
 
-func (rep *RepRabbitClient) batch(subject string, guids []string, instance types.Instance) types.VoteResults {
-	c := make(chan types.VoteResult)
+func (rep *RepRabbitClient) batch(subject string, guids []string, instance types.Instance) types.ScoreResults {
+	c := make(chan types.ScoreResult)
 	for _, guid := range guids {
 		go func(guid string) {
-			var response types.VoteResult
+			var response types.ScoreResult
 			err := rep.request(guid, subject, instance, &response)
 			if err != nil {
-				c <- types.VoteResult{
+				c <- types.ScoreResult{
 					Error: err.Error(),
 				}
 			}
@@ -108,28 +108,28 @@ func (rep *RepRabbitClient) batch(subject string, guids []string, instance types
 		}(guid)
 	}
 
-	votes := types.VoteResults{}
+	scores := types.ScoreResults{}
 	for _ = range guids {
-		votes = append(votes, <-c)
+		scores = append(scores, <-c)
 	}
 
-	return votes
+	return scores
 }
 
-func (rep *RepRabbitClient) Vote(guids []string, instance types.Instance) types.VoteResults {
-	return rep.batch("vote", guids, instance)
+func (rep *RepRabbitClient) Score(guids []string, instance types.Instance) types.ScoreResults {
+	return rep.batch("score", guids, instance)
 }
 
-func (rep *RepRabbitClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
-	return rep.batch("reserve_and_recast_vote", guids, instance)
+func (rep *RepRabbitClient) ScoreThenTentativelyReserve(guids []string, instance types.Instance) types.ScoreResults {
+	return rep.batch("score_then_tentatively_reserve", guids, instance)
 }
 
-func (rep *RepRabbitClient) Release(guids []string, instance types.Instance) {
+func (rep *RepRabbitClient) ReleaseReservation(guids []string, instance types.Instance) {
 	allReceived := new(sync.WaitGroup)
 	allReceived.Add(len(guids))
 	for _, guid := range guids {
 		go func(guid string) {
-			rep.request(guid, "release", instance, nil)
+			rep.request(guid, "release-reservation", instance, nil)
 			allReceived.Done()
 		}(guid)
 	}

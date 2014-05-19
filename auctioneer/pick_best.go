@@ -18,14 +18,14 @@ func pickBestAuction(client types.RepPoolClient, auctionRequest types.AuctionReq
 
 		//get everyone's score, if they're all full: bail
 		numCommunications += len(firstRoundReps)
-		firstRoundVotes := client.Vote(firstRoundReps, auctionRequest.Instance)
-		if firstRoundVotes.AllFailed() {
+		firstRoundScores := client.Score(firstRoundReps, auctionRequest.Instance)
+		if firstRoundScores.AllFailed() {
 			continue
 		}
 
-		winner := firstRoundVotes.FilterErrors().Shuffle().Sort()[0]
+		winner := firstRoundScores.FilterErrors().Shuffle().Sort()[0]
 
-		result := client.ReserveAndRecastVote([]string{winner.Rep}, auctionRequest.Instance)[0]
+		result := client.ScoreThenTentativelyReserve([]string{winner.Rep}, auctionRequest.Instance)[0]
 		numCommunications += 1
 		if result.Error != "" {
 			continue

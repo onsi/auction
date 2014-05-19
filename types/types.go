@@ -29,13 +29,13 @@ type AuctionRules struct {
 
 type RepGuids []string
 
-type VoteResult struct {
+type ScoreResult struct {
 	Rep   string  `json:"r"`
 	Score float64 `json:"s"`
 	Error string  `json:"e"`
 }
 
-type VoteResults []VoteResult
+type ScoreResults []ScoreResult
 
 type Instance struct {
 	AppGuid           string
@@ -54,9 +54,9 @@ func NewInstance(appGuid string, requiredResources int) Instance {
 }
 
 type RepPoolClient interface {
-	Vote(guids []string, instance Instance) VoteResults
-	ReserveAndRecastVote(guids []string, instance Instance) VoteResults
-	Release(guids []string, instance Instance)
+	Score(guids []string, instance Instance) ScoreResults
+	ScoreThenTentativelyReserve(guids []string, instance Instance) ScoreResults
+	ReleaseReservation(guids []string, instance Instance)
 	Claim(guid string, instance Instance)
 }
 

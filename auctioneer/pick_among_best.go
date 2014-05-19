@@ -19,16 +19,16 @@ func pickAmongBestAuction(client types.RepPoolClient, auctionRequest types.Aucti
 
 		//get everyone's score, if they're all full: bail
 		numCommunications += len(firstRoundReps)
-		firstRoundVotes := client.Vote(firstRoundReps, auctionRequest.Instance)
-		if firstRoundVotes.AllFailed() {
+		firstRoundScores := client.Score(firstRoundReps, auctionRequest.Instance)
+		if firstRoundScores.AllFailed() {
 			continue
 		}
 
-		top5Winners := firstRoundVotes.FilterErrors().Shuffle().Sort()[:5]
+		top5Winners := firstRoundScores.FilterErrors().Shuffle().Sort()[:5]
 
 		winner := top5Winners.Shuffle()[0]
 
-		result := client.ReserveAndRecastVote([]string{winner.Rep}, auctionRequest.Instance)[0]
+		result := client.ScoreThenTentativelyReserve([]string{winner.Rep}, auctionRequest.Instance)[0]
 		numCommunications += 1
 		if result.Error != "" {
 			continue

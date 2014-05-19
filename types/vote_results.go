@@ -6,15 +6,15 @@ import (
 	"github.com/onsi/auction/util"
 )
 
-func (a VoteResults) Len() int           { return len(a) }
-func (a VoteResults) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a VoteResults) Less(i, j int) bool { return a[i].Score < a[j].Score }
+func (a ScoreResults) Len() int           { return len(a) }
+func (a ScoreResults) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ScoreResults) Less(i, j int) bool { return a[i].Score < a[j].Score }
 
-func (v VoteResults) AllFailed() bool {
+func (v ScoreResults) AllFailed() bool {
 	return len(v.FilterErrors()) == 0
 }
 
-func (v VoteResults) Reps() RepGuids {
+func (v ScoreResults) Reps() RepGuids {
 	out := RepGuids{}
 	for _, r := range v {
 		out = append(out, r.Rep)
@@ -23,8 +23,8 @@ func (v VoteResults) Reps() RepGuids {
 	return out
 }
 
-func (v VoteResults) FilterErrors() VoteResults {
-	out := VoteResults{}
+func (v ScoreResults) FilterErrors() ScoreResults {
+	out := ScoreResults{}
 	for _, r := range v {
 		if r.Error == "" {
 			out = append(out, r)
@@ -34,8 +34,8 @@ func (v VoteResults) FilterErrors() VoteResults {
 	return out
 }
 
-func (v VoteResults) Shuffle() VoteResults {
-	out := make(VoteResults, len(v))
+func (v ScoreResults) Shuffle() ScoreResults {
+	out := make(ScoreResults, len(v))
 
 	perm := util.R.Perm(len(v))
 	for i, index := range perm {
@@ -45,7 +45,7 @@ func (v VoteResults) Shuffle() VoteResults {
 	return out
 }
 
-func (v VoteResults) Sort() VoteResults {
+func (v ScoreResults) Sort() ScoreResults {
 	sort.Sort(v)
 	return v
 }

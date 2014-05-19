@@ -16,7 +16,7 @@ func main() {
 		// "pick_among_best",
 		"reserve_n_best",
 		// "all_reserve",
-		"all_revote",
+		"all_rescore",
 	}
 	out := "<html><head></head><body><table>"
 	// for _, comm := range []string{"inprocess", "nats", "ketchup"} {

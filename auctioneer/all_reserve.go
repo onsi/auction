@@ -18,18 +18,18 @@ func allReserveAuction(client types.RepPoolClient, auctionRequest types.AuctionR
 
 		//reserve everyone
 		numCommunications += len(firstRoundReps)
-		votes := client.ReserveAndRecastVote(firstRoundReps, auctionRequest.Instance)
+		scores := client.ScoreThenTentativelyReserve(firstRoundReps, auctionRequest.Instance)
 
-		if votes.AllFailed() {
+		if scores.AllFailed() {
 			continue
 		}
 
-		orderedReps := votes.FilterErrors().Shuffle().Sort().Reps()
+		orderedReps := scores.FilterErrors().Shuffle().Sort().Reps()
 
 		numCommunications += len(orderedReps)
 		client.Claim(orderedReps[0], auctionRequest.Instance)
 		if len(orderedReps) > 1 {
-			client.Release(orderedReps[1:], auctionRequest.Instance)
+			client.ReleaseReservation(orderedReps[1:], auctionRequest.Instance)
 		}
 
 		return orderedReps[0], rounds, numCommunications

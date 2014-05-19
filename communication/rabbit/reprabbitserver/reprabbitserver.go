@@ -56,7 +56,7 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 		return out
 	})
 
-	server.Handle("vote", func(req []byte) []byte {
+	server.Handle("score", func(req []byte) []byte {
 		var inst types.Instance
 
 		err := json.Unmarshal(req, &inst)
@@ -64,7 +64,7 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 			return errorResponse
 		}
 
-		response := types.VoteResult{
+		response := types.ScoreResult{
 			Rep: rep.Guid(),
 		}
 
@@ -79,7 +79,7 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 		return out
 	})
 
-	server.Handle("reserve_and_recast_vote", func(req []byte) []byte {
+	server.Handle("score_then_tentatively_reserve", func(req []byte) []byte {
 		var inst types.Instance
 
 		err := json.Unmarshal(req, &inst)
@@ -87,7 +87,7 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 			return errorResponse
 		}
 
-		response := types.VoteResult{
+		response := types.ScoreResult{
 			Rep: rep.Guid(),
 		}
 
@@ -102,7 +102,7 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 		return out
 	})
 
-	server.Handle("release", func(req []byte) []byte {
+	server.Handle("release-reservation", func(req []byte) []byte {
 		var instance types.Instance
 
 		err := json.Unmarshal(req, &instance)

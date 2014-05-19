@@ -67,7 +67,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 		client.Publish(msg.ReplyTo, jinstances)
 	})
 
-	client.Subscribe(guid+".vote", func(msg *yagnats.Message) {
+	client.Subscribe(guid+".score", func(msg *yagnats.Message) {
 		var inst types.Instance
 
 		err := json.Unmarshal(msg.Payload, &inst)
@@ -75,7 +75,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 			panic(err)
 		}
 
-		response := types.VoteResult{
+		response := types.ScoreResult{
 			Rep: guid,
 		}
 
@@ -93,7 +93,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 		response.Score = score
 	})
 
-	client.Subscribe(guid+".reserve_and_recast_vote", func(msg *yagnats.Message) {
+	client.Subscribe(guid+".score_then_tentatively_reserve", func(msg *yagnats.Message) {
 		var inst types.Instance
 
 		err := json.Unmarshal(msg.Payload, &inst)
@@ -101,7 +101,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 			panic(err)
 		}
 
-		response := types.VoteResult{
+		response := types.ScoreResult{
 			Rep: guid,
 		}
 
@@ -119,7 +119,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 		response.Score = score
 	})
 
-	client.Subscribe(guid+".release", func(msg *yagnats.Message) {
+	client.Subscribe(guid+".release-reservation", func(msg *yagnats.Message) {
 		var inst types.Instance
 
 		responsePayload := errorResponse
@@ -129,7 +129,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 
 		err := json.Unmarshal(msg.Payload, &inst)
 		if err != nil {
-			log.Println(guid, "invalid reserve_and_recast_vote request:", err)
+			log.Println(guid, "invalid score_then_tentatively_reserve request:", err)
 			return
 		}
 
@@ -148,7 +148,7 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 
 		err := json.Unmarshal(msg.Payload, &inst)
 		if err != nil {
-			log.Println(guid, "invalid reserve_and_recast_vote request:", err)
+			log.Println(guid, "invalid score_then_tentatively_reserve request:", err)
 			return
 		}
 

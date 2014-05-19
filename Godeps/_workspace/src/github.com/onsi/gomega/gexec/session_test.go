@@ -40,7 +40,7 @@ var _ = Describe("Session", func() {
 			defer session.Out.CancelDetects()
 
 			select {
-			case <-session.Out.Detect("Can we maybe vote on the whole murdering people issue"):
+			case <-session.Out.Detect("Can we maybe score on the whole murdering people issue"):
 				Eventually(session).Should(Exit(0))
 			case <-session.Out.Detect("I swear by my pretty floral bonnet, I will end you."):
 				Eventually(session).Should(Exit(1))

@@ -6,12 +6,12 @@ import "github.com/onsi/auction/types"
 
 Get the scores from the subset of reps
     Pick the winner (lowest score)
-        Tell the winner to reserve and the others to revote
+        Tell the winner to reserve and the others to rescore
         	If the winner still has the lowest score we are done, otherwise, repeat
 
 */
 
-func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
+func allRescoreAuction(client types.RepPoolClient, auctionRequest types.AuctionRequest) (string, int, int) {
 	rounds, numCommunications := 1, 0
 
 	for ; rounds <= auctionRequest.Rules.MaxRounds; rounds++ {
@@ -20,21 +20,21 @@ func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRe
 
 		//get everyone's score, if they're all full: bail
 		numCommunications += len(firstRoundReps)
-		firstRoundVotes := client.Vote(firstRoundReps, auctionRequest.Instance)
-		if firstRoundVotes.AllFailed() {
+		firstRoundScores := client.Score(firstRoundReps, auctionRequest.Instance)
+		if firstRoundScores.AllFailed() {
 			continue
 		}
 
-		winner := firstRoundVotes.FilterErrors().Shuffle().Sort()[0]
+		winner := firstRoundScores.FilterErrors().Shuffle().Sort()[0]
 
 		// tell the winner to reserve
 		numCommunications += 1
-		winnerRecast := client.ReserveAndRecastVote([]string{winner.Rep}, auctionRequest.Instance)[0]
+		winnerRecast := client.ScoreThenTentativelyReserve([]string{winner.Rep}, auctionRequest.Instance)[0]
 
 		//get everyone's score again
 		secondRoundReps := firstRoundReps.Without(winner.Rep)
 		numCommunications += len(secondRoundReps)
-		secondRoundVotes := client.Vote(secondRoundReps, auctionRequest.Instance)
+		secondRoundScores := client.Score(secondRoundReps, auctionRequest.Instance)
 
 		//if the winner ran out of space: bail
 		if winnerRecast.Error != "" {
@@ -42,10 +42,10 @@ func allRevoteAuction(client types.RepPoolClient, auctionRequest types.AuctionRe
 		}
 
 		// if the second place winner has a better score than the original winner: bail
-		if !secondRoundVotes.AllFailed() {
-			secondPlace := secondRoundVotes.FilterErrors().Shuffle().Sort()[0]
+		if !secondRoundScores.AllFailed() {
+			secondPlace := secondRoundScores.FilterErrors().Shuffle().Sort()[0]
 			if secondPlace.Score < winnerRecast.Score {
-				client.Release([]string{winner.Rep}, auctionRequest.Instance)
+				client.ReleaseReservation([]string{winner.Rep}, auctionRequest.Instance)
 				numCommunications += 1
 				continue
 			}

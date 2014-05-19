@@ -71,8 +71,8 @@ func (client *InprocessClient) Reset(guid string) {
 	client.testAuctionRep(guid).Reset()
 }
 
-func (client *InprocessClient) vote(guid string, instance types.Instance, c chan types.VoteResult) {
-	result := types.VoteResult{
+func (client *InprocessClient) score(guid string, instance types.Instance, c chan types.ScoreResult) {
+	result := types.ScoreResult{
 		Rep: guid,
 	}
 	defer func() {
@@ -94,13 +94,13 @@ func (client *InprocessClient) vote(guid string, instance types.Instance, c chan
 	return
 }
 
-func (client *InprocessClient) Vote(representatives []string, instance types.Instance) types.VoteResults {
-	c := make(chan types.VoteResult)
+func (client *InprocessClient) Score(representatives []string, instance types.Instance) types.ScoreResults {
+	c := make(chan types.ScoreResult)
 	for _, guid := range representatives {
-		go client.vote(guid, instance, c)
+		go client.score(guid, instance, c)
 	}
 
-	results := types.VoteResults{}
+	results := types.ScoreResults{}
 	for _ = range representatives {
 		results = append(results, <-c)
 	}
@@ -108,8 +108,8 @@ func (client *InprocessClient) Vote(representatives []string, instance types.Ins
 	return results
 }
 
-func (client *InprocessClient) reserveAndRecastVote(guid string, instance types.Instance, c chan types.VoteResult) {
-	result := types.VoteResult{
+func (client *InprocessClient) reserveAndRecastScore(guid string, instance types.Instance, c chan types.ScoreResult) {
+	result := types.ScoreResult{
 		Rep: guid,
 	}
 	defer func() {
@@ -131,13 +131,13 @@ func (client *InprocessClient) reserveAndRecastVote(guid string, instance types.
 	return
 }
 
-func (client *InprocessClient) ReserveAndRecastVote(guids []string, instance types.Instance) types.VoteResults {
-	c := make(chan types.VoteResult)
+func (client *InprocessClient) ScoreThenTentativelyReserve(guids []string, instance types.Instance) types.ScoreResults {
+	c := make(chan types.ScoreResult)
 	for _, guid := range guids {
-		go client.reserveAndRecastVote(guid, instance, c)
+		go client.reserveAndRecastScore(guid, instance, c)
 	}
 
-	results := types.VoteResults{}
+	results := types.ScoreResults{}
 	for _ = range guids {
 		results = append(results, <-c)
 	}
@@ -145,7 +145,7 @@ func (client *InprocessClient) ReserveAndRecastVote(guids []string, instance typ
 	return results
 }
 
-func (client *InprocessClient) Release(guids []string, instance types.Instance) {
+func (client *InprocessClient) ReleaseReservation(guids []string, instance types.Instance) {
 	c := make(chan bool)
 	for _, guid := range guids {
 		go func(guid string) {

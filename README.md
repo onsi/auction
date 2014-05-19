@@ -6,8 +6,8 @@
 - [X] In-process algorithm simulation
 - [X] Textual visualization
 - [X] Naive HTTP (too many open files)
-- [X] Naive NATS topology (pub/sub per rep per vote)
-- [X] Collated NATS topology (one pub/sub per vote across all reps)
+- [X] Naive NATS topology (pub/sub per rep per score)
+- [X] Collated NATS topology (one pub/sub per score across all reps)
 - [X] Pull out common client interface
 - [] Organize by communication medium
 - [] One rep binary for all communication
@@ -32,7 +32,7 @@ Explorations
     - [X] Limit Rep bidding pool (value of choice: 20)
     - [X] Limit max number of concurrenct auctions (value of choice: 20)
     - [] Repick bidding pool between rounds
-    - [] Limit second-round vote to top-3 (?) bidders
+    - [] Limit second-round score to top-3 (?) bidders
 - Scoring functions
     - [X] Memory
     - [X] App Distribution

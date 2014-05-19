@@ -143,20 +143,20 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 
 	///
 
-	fmt.Println("Votes")
-	minVotes, maxVotes, totalVotes, meanVotes := 100000000, 0, 0, float64(0)
+	fmt.Println("Scores")
+	minScores, maxScores, totalScores, meanScores := 100000000, 0, 0, float64(0)
 	for _, result := range results {
-		if result.NumCommunications < minVotes {
-			minVotes = result.NumCommunications
+		if result.NumCommunications < minScores {
+			minScores = result.NumCommunications
 		}
-		if result.NumCommunications > maxVotes {
-			maxVotes = result.NumCommunications
+		if result.NumCommunications > maxScores {
+			maxScores = result.NumCommunications
 		}
-		totalVotes += result.NumCommunications
-		meanVotes += float64(result.NumCommunications)
+		totalScores += result.NumCommunications
+		meanScores += float64(result.NumCommunications)
 	}
 
-	meanVotes = meanVotes / float64(len(results))
-	fmt.Printf("  Min: %d | Max: %d | Total: %d | Mean: %.2f\n", minVotes, maxVotes, totalVotes, meanVotes)
+	meanScores = meanScores / float64(len(results))
+	fmt.Printf("  Min: %d | Max: %d | Total: %d | Mean: %.2f\n", minScores, maxScores, totalScores, meanScores)
 
 }
