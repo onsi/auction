@@ -16,7 +16,7 @@ import (
 	"github.com/onsi/auction/communication/nats/repnatsclient"
 	"github.com/onsi/auction/communication/rabbit/reprabbitclient"
 	"github.com/onsi/auction/simulation/auctiondistributor"
-	"github.com/onsi/auction/simulation/simulationrep"
+	"github.com/onsi/auction/simulation/simulationrepdelegate"
 	"github.com/onsi/auction/simulation/visualization"
 	"github.com/onsi/auction/types"
 	"github.com/onsi/auction/util"
@@ -41,7 +41,12 @@ const Remote = "remote"
 //these are const because they are fixed on ketchup
 const numAuctioneers = 10
 const numReps = 100
-const repResources = 100
+
+var repResources = types.Resources{
+	MemoryMB:   100.0,
+	DiskMB:     100.0,
+	Containers: 100,
+}
 
 var maxConcurrent int
 
@@ -146,12 +151,14 @@ func buildInProcessReps() (types.TestRepPoolClient, []string) {
 	inprocess.Flakiness = 0.95
 
 	guids := []string{}
-	repMap := map[string]auctionrep.AuctionRep{}
+	repMap := map[string]*auctionrep.AuctionRep{}
 
 	for i := 0; i < numReps; i++ {
 		guid := util.NewGuid("REP")
 		guids = append(guids, guid)
-		repMap[guid] = simulationrep.New(guid, repResources)
+
+		repDelegate := simulationrepdelegate.New(repResources)
+		repMap[guid] = auctionrep.New(guid, repDelegate)
 	}
 
 	client := inprocess.New(repMap)
@@ -187,7 +194,9 @@ func launchExternalReps(communicationFlag string, communicationValue string) []s
 			repNodeBinary,
 			"-guid", guid,
 			communicationFlag, communicationValue,
-			"-resources", fmt.Sprintf("%d", repResources),
+			"-memoryMB", fmt.Sprintf("%f", repResources.MemoryMB),
+			"-diskMB", fmt.Sprintf("%f", repResources.DiskMB),
+			"-containers", fmt.Sprintf("%d", repResources.Containers),
 		)
 
 		sess, err := gexec.Start(serverCmd, GinkgoWriter, GinkgoWriter)

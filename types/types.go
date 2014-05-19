@@ -1,10 +1,11 @@
 package types
 
 import (
+	"errors"
 	"time"
-
-	"github.com/onsi/auction/util"
 )
+
+var InsufficientResources = errors.New("insufficient resources for instance")
 
 type AuctionRequest struct {
 	Instance Instance     `json:"i"`
@@ -37,20 +38,16 @@ type ScoreResult struct {
 
 type ScoreResults []ScoreResult
 
-type Instance struct {
-	AppGuid           string
-	InstanceGuid      string
-	RequiredResources int
-	Tentative         bool
+type Resources struct {
+	DiskMB     float64 `json:"d"`
+	MemoryMB   float64 `json:"m"`
+	Containers int     `json:"c,omitempty"`
 }
 
-func NewInstance(appGuid string, requiredResources int) Instance {
-	return Instance{
-		AppGuid:           appGuid,
-		InstanceGuid:      util.NewGuid("INS"),
-		RequiredResources: requiredResources,
-		Tentative:         false,
-	}
+type Instance struct {
+	AppGuid      string    `json:"a"`
+	InstanceGuid string    `json:"i"`
+	Resources    Resources `json:"r"`
 }
 
 type RepPoolClient interface {
@@ -63,7 +60,7 @@ type RepPoolClient interface {
 type TestRepPoolClient interface {
 	RepPoolClient
 
-	TotalResources(guid string) int
+	TotalResources(guid string) Resources
 	Instances(guid string) []Instance
 	SetInstances(guid string, instances []Instance)
 	Reset(guid string)

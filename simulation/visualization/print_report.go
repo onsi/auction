@@ -75,7 +75,7 @@ func PrintReport(client types.TestRepPoolClient, results []types.AuctionResult, 
 			instanceString += strings.Repeat(colorLookup[col]+"○"+defaultStyle, originalCounts[col])
 			instanceString += strings.Repeat(colorLookup[col]+"●"+defaultStyle, newCounts[col])
 		}
-		instanceString += strings.Repeat(grayColor+"○"+defaultStyle, client.TotalResources(guid)-len(instances))
+		instanceString += strings.Repeat(grayColor+"○"+defaultStyle, client.TotalResources(guid).Containers-len(instances))
 
 		fmt.Printf("  %s: %s\n", repString, instanceString)
 	}

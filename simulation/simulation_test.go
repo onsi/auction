@@ -14,10 +14,21 @@ var _ = Ω
 var _ = Describe("Auction", func() {
 	var initialDistributions map[int][]types.Instance
 
+	newInstance := func(appGuid string) types.Instance {
+		return types.Instance{
+			AppGuid:      appGuid,
+			InstanceGuid: util.NewGuid("INS"),
+			Resources: types.Resources{
+				MemoryMB: 1,
+				DiskMB:   1,
+			},
+		}
+	}
+
 	generateUniqueInstances := func(numInstances int) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, types.NewInstance(util.NewGrayscaleGuid("BBB"), 1))
+			instances = append(instances, newInstance(util.NewGrayscaleGuid("BBB")))
 		}
 		return instances
 	}
@@ -25,7 +36,7 @@ var _ = Describe("Auction", func() {
 	generateUniqueInitialInstances := func(numInstances int) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, types.NewInstance(util.NewGrayscaleGuid("AAA"), 1))
+			instances = append(instances, newInstance(util.NewGrayscaleGuid("AAA")))
 		}
 		return instances
 	}
@@ -37,7 +48,7 @@ var _ = Describe("Auction", func() {
 	generateInstancesWithRandomSVGColors := func(numInstances int) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, types.NewInstance(randomSVGColor(), 1))
+			instances = append(instances, newInstance(randomSVGColor()))
 		}
 		return instances
 	}
@@ -45,7 +56,7 @@ var _ = Describe("Auction", func() {
 	generateInstancesForAppGuid := func(numInstances int, appGuid string) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, types.NewInstance(appGuid, 1))
+			instances = append(instances, newInstance(appGuid))
 		}
 		return instances
 	}

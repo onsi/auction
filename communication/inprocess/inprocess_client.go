@@ -14,10 +14,10 @@ var Timeout time.Duration
 var Flakiness = 1.0
 
 type InprocessClient struct {
-	reps map[string]auctionrep.AuctionRep
+	reps map[string]*auctionrep.AuctionRep
 }
 
-func New(reps map[string]auctionrep.AuctionRep) *InprocessClient {
+func New(reps map[string]*auctionrep.AuctionRep) *InprocessClient {
 	return &InprocessClient{
 		reps: reps,
 	}
@@ -46,29 +46,20 @@ func (client *InprocessClient) beSlowAndPossiblyTimeout(guid string) bool {
 	}
 }
 
-func (client *InprocessClient) testAuctionRep(guid string) auctionrep.TestAuctionRep {
-	tar, ok := client.reps[guid].(auctionrep.TestAuctionRep)
-	if !ok {
-		panic("attempting to do a test-like thing with a non-test-like rep")
-	}
-
-	return tar
-}
-
-func (client *InprocessClient) TotalResources(guid string) int {
-	return client.testAuctionRep(guid).TotalResources()
+func (client *InprocessClient) TotalResources(guid string) types.Resources {
+	return client.reps[guid].TotalResources()
 }
 
 func (client *InprocessClient) Instances(guid string) []types.Instance {
-	return client.testAuctionRep(guid).Instances()
+	return client.reps[guid].Instances()
 }
 
 func (client *InprocessClient) SetInstances(guid string, instances []types.Instance) {
-	client.testAuctionRep(guid).SetInstances(instances)
+	client.reps[guid].SetInstances(instances)
 }
 
 func (client *InprocessClient) Reset(guid string) {
-	client.testAuctionRep(guid).Reset()
+	client.reps[guid].Reset()
 }
 
 func (client *InprocessClient) score(guid string, instance types.Instance, c chan types.ScoreResult) {

@@ -60,8 +60,8 @@ func (rep *RepRabbitClient) request(guid string, subject string, req interface{}
 	return nil
 }
 
-func (rep *RepRabbitClient) TotalResources(guid string) int {
-	var totalResources int
+func (rep *RepRabbitClient) TotalResources(guid string) types.Resources {
+	var totalResources types.Resources
 	err := rep.request(guid, "total_resources", []byte{}, &totalResources)
 	if err != nil {
 		panic(err)

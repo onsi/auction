@@ -66,8 +66,8 @@ func (rep *RepNatsClient) publishWithTimeout(guid string, subject string, req in
 	}
 }
 
-func (rep *RepNatsClient) TotalResources(guid string) int {
-	var totalResources int
+func (rep *RepNatsClient) TotalResources(guid string) types.Resources {
+	var totalResources types.Resources
 	err := rep.publishWithTimeout(guid, "total_resources", nil, &totalResources)
 	if err != nil {
 		panic(err)

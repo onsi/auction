@@ -12,7 +12,7 @@ import (
 var errorResponse = []byte("error")
 var successResponse = []byte("ok")
 
-func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
+func Start(rabbitUrl string, rep *auctionrep.AuctionRep) {
 	println("RABBIT", rabbitUrl)
 	server := rabbitclient.NewServer(rep.Guid(), rabbitUrl)
 	err := server.ConnectAndEstablish()
@@ -20,22 +20,13 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 		panic(err)
 	}
 
-	testAuctionRep := func() auctionrep.TestAuctionRep {
-		tar, ok := rep.(auctionrep.TestAuctionRep)
-		if !ok {
-			panic("attempting to do a test-like thing with a non-test-like rep")
-		}
-
-		return tar
-	}
-
 	server.Handle("total_resources", func(_ []byte) []byte {
-		out, _ := json.Marshal(testAuctionRep().TotalResources())
+		out, _ := json.Marshal(rep.TotalResources())
 		return out
 	})
 
 	server.Handle("reset", func(_ []byte) []byte {
-		testAuctionRep().Reset()
+		rep.Reset()
 		return successResponse
 	})
 
@@ -47,12 +38,12 @@ func Start(rabbitUrl string, rep auctionrep.AuctionRep) {
 			return errorResponse
 		}
 
-		testAuctionRep().SetInstances(instances)
+		rep.SetInstances(instances)
 		return successResponse
 	})
 
 	server.Handle("instances", func(_ []byte) []byte {
-		out, _ := json.Marshal(testAuctionRep().Instances())
+		out, _ := json.Marshal(rep.Instances())
 		return out
 	})
 

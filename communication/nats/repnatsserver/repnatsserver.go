@@ -13,7 +13,7 @@ import (
 var errorResponse = []byte("error")
 var successResponse = []byte("ok")
 
-func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
+func Start(natsAddrs []string, rep *auctionrep.AuctionRep) {
 	client := yagnats.NewClient()
 
 	clusterInfo := &yagnats.ConnectionCluster{}
@@ -31,22 +31,13 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 
 	guid := rep.Guid()
 
-	testAuctionRep := func() auctionrep.TestAuctionRep {
-		tar, ok := rep.(auctionrep.TestAuctionRep)
-		if !ok {
-			panic("attempting to do a test-like thing with a non-test-like rep")
-		}
-
-		return tar
-	}
-
 	client.Subscribe(guid+".total_resources", func(msg *yagnats.Message) {
-		jresources, _ := json.Marshal(testAuctionRep().TotalResources())
+		jresources, _ := json.Marshal(rep.TotalResources())
 		client.Publish(msg.ReplyTo, jresources)
 	})
 
 	client.Subscribe(guid+".reset", func(msg *yagnats.Message) {
-		testAuctionRep().Reset()
+		rep.Reset()
 		client.Publish(msg.ReplyTo, successResponse)
 	})
 
@@ -58,12 +49,12 @@ func Start(natsAddrs []string, rep auctionrep.AuctionRep) {
 			client.Publish(msg.ReplyTo, errorResponse)
 		}
 
-		testAuctionRep().SetInstances(instances)
+		rep.SetInstances(instances)
 		client.Publish(msg.ReplyTo, successResponse)
 	})
 
 	client.Subscribe(guid+".instances", func(msg *yagnats.Message) {
-		jinstances, _ := json.Marshal(testAuctionRep().Instances())
+		jinstances, _ := json.Marshal(rep.Instances())
 		client.Publish(msg.ReplyTo, jinstances)
 	})
 
