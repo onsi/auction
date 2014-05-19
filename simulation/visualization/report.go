@@ -67,31 +67,35 @@ func (r *Report) NMissingInstances() int {
 }
 
 func (r *Report) InitialDistributionScore() float64 {
-	instanceCounts := []float64{}
+	memoryCounts := []float64{}
 	for _, instances := range r.InstancesByRep {
-		count := 0
+		memoryCount := 0.0
 		for _, instance := range instances {
 			if !r.IsAuctionedInstance(instance) {
-				count++
+				memoryCount += instance.Resources.MemoryMB
 			}
 		}
-		instanceCounts = append(instanceCounts, float64(count))
+		memoryCounts = append(memoryCounts, memoryCount)
 	}
 
-	if stats.StatsSum(instanceCounts) == 0 {
+	if stats.StatsSum(memoryCounts) == 0 {
 		return 0
 	}
 
-	return stats.StatsPopulationStandardDeviation(instanceCounts) / stats.StatsMean(instanceCounts)
+	return stats.StatsPopulationStandardDeviation(memoryCounts) / stats.StatsMean(memoryCounts)
 }
 
 func (r *Report) DistributionScore() float64 {
-	instanceCounts := []float64{}
+	memoryCounts := []float64{}
 	for _, instances := range r.InstancesByRep {
-		instanceCounts = append(instanceCounts, float64(len(instances)))
+		memoryCount := 0.0
+		for _, instance := range instances {
+			memoryCount += instance.Resources.MemoryMB
+		}
+		memoryCounts = append(memoryCounts, memoryCount)
 	}
 
-	return stats.StatsPopulationStandardDeviation(instanceCounts) / stats.StatsMean(instanceCounts)
+	return stats.StatsPopulationStandardDeviation(memoryCounts) / stats.StatsMean(memoryCounts)
 }
 
 func (r *Report) AuctionsPerSecond() float64 {

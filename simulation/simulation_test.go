@@ -14,29 +14,29 @@ var _ = Ω
 var _ = Describe("Auction", func() {
 	var initialDistributions map[int][]types.Instance
 
-	newInstance := func(appGuid string) types.Instance {
+	newInstance := func(appGuid string, memoryMB float64) types.Instance {
 		return types.Instance{
 			AppGuid:      appGuid,
 			InstanceGuid: util.NewGuid("INS"),
 			Resources: types.Resources{
-				MemoryMB: 1,
+				MemoryMB: memoryMB,
 				DiskMB:   1,
 			},
 		}
 	}
 
-	generateUniqueInstances := func(numInstances int) []types.Instance {
+	generateUniqueInstances := func(numInstances int, memoryMB float64) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, newInstance(util.NewGrayscaleGuid("BBB")))
+			instances = append(instances, newInstance(util.NewGrayscaleGuid("BBB"), memoryMB))
 		}
 		return instances
 	}
 
-	generateUniqueInitialInstances := func(numInstances int) []types.Instance {
+	generateUniqueInitialInstances := func(numInstances int, memoryMB float64) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, newInstance(util.NewGrayscaleGuid("AAA")))
+			instances = append(instances, newInstance(util.NewGrayscaleGuid("AAA"), memoryMB))
 		}
 		return instances
 	}
@@ -45,18 +45,18 @@ var _ = Describe("Auction", func() {
 		return []string{"purple", "red", "cyan", "teal", "gray", "blue", "pink", "green", "lime", "orange", "lightseagreen", "brown"}[util.R.Intn(12)]
 	}
 
-	generateInstancesWithRandomSVGColors := func(numInstances int) []types.Instance {
+	generateInstancesWithRandomSVGColors := func(numInstances int, memoryMB float64) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, newInstance(randomSVGColor()))
+			instances = append(instances, newInstance(randomSVGColor(), memoryMB))
 		}
 		return instances
 	}
 
-	generateInstancesForAppGuid := func(numInstances int, appGuid string) []types.Instance {
+	generateInstancesForAppGuid := func(numInstances int, appGuid string, memoryMB float64) []types.Instance {
 		instances := []types.Instance{}
 		for i := 0; i < numInstances; i++ {
-			instances = append(instances, newInstance(appGuid))
+			instances = append(instances, newInstance(appGuid, memoryMB))
 		}
 		return instances
 	}
@@ -75,13 +75,26 @@ var _ = Describe("Auction", func() {
 	Describe("Experiments", func() {
 		Context("Cold start scenario", func() {
 			nexec := []int{25, 100}
-			napps := []int{2000, 8000}
+			n1apps := []int{1800, 7000}
+			n2apps := []int{200, 1000}
+			n4apps := []int{50, 200}
 			for i := range nexec {
 				i := i
 				Context("with single-instance and multi-instance apps apps", func() {
 					It("should distribute evenly", func() {
-						instances := generateUniqueInstances(napps[i] / 2)
-						instances = append(instances, generateInstancesWithRandomSVGColors(napps[i]/2)...)
+						instances := []types.Instance{}
+
+						instances = append(instances, generateUniqueInstances(n1apps[i]/2, 1)...)
+						instances = append(instances, generateInstancesWithRandomSVGColors(n1apps[i]/2, 1)...)
+						instances = append(instances, generateUniqueInstances(n2apps[i]/2, 2)...)
+						instances = append(instances, generateInstancesWithRandomSVGColors(n2apps[i]/2, 2)...)
+						instances = append(instances, generateUniqueInstances(n4apps[i]/2, 4)...)
+						instances = append(instances, generateInstancesWithRandomSVGColors(n4apps[i]/2, 4)...)
+
+						permutedInstances := make([]types.Instance, len(instances))
+						for i, index := range util.R.Perm(len(instances)) {
+							permutedInstances[i] = instances[index]
+						}
 
 						report := auctionDistributor.HoldAuctionsFor(instances, guids[:nexec[i]], auctioneer.DefaultRules)
 
@@ -105,12 +118,12 @@ var _ = Describe("Auction", func() {
 				Context("scenario", func() {
 					BeforeEach(func() {
 						for j := 0; j < nexec[i]-nempty[i]; j++ {
-							initialDistributions[j] = generateUniqueInitialInstances(50)
+							initialDistributions[j] = generateUniqueInitialInstances(50, 1)
 						}
 					})
 
 					It("should distribute evenly", func() {
-						instances := generateUniqueInstances(napps[i])
+						instances := generateUniqueInstances(napps[i], 1)
 
 						report := auctionDistributor.HoldAuctionsFor(instances, guids[:nexec[i]], auctioneer.DefaultRules)
 
@@ -133,12 +146,12 @@ var _ = Describe("Auction", func() {
 				Context("scenario", func() {
 					BeforeEach(func() {
 						for j := 0; j < nexec[i]; j++ {
-							initialDistributions[j] = generateUniqueInitialInstances(util.RandomIntIn(78, 80))
+							initialDistributions[j] = generateUniqueInitialInstances(util.RandomIntIn(78, 80), 1)
 						}
 					})
 
 					It("should distribute evenly", func() {
-						instances := generateInstancesForAppGuid(napps[i], "red")
+						instances := generateInstancesForAppGuid(napps[i], "red", 1)
 
 						report := auctionDistributor.HoldAuctionsFor(instances, guids[:nexec[i]], auctioneer.DefaultRules)
 

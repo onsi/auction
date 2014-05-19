@@ -11,7 +11,6 @@ import (
 var LatencyMin time.Duration
 var LatencyMax time.Duration
 var Timeout time.Duration
-var Flakiness = 1.0
 
 type InprocessClient struct {
 	reps map[string]*auctionrep.AuctionRep
