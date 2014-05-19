@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/onsi/auction/communication/inprocess"
+	"github.com/onsi/auction/simulation/communication/inprocess"
 	"github.com/onsi/auction/types"
 )
 
